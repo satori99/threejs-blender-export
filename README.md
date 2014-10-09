@@ -8,11 +8,11 @@ This add-on will export one or more blender meshes as a single three.js object. 
 will either be a `THREE.Mesh`, or a `THREE.Object3D`, with two or more `THREE.Mesh` children,
 depending on export options.
 
-![Blender Suzanne mesh with 6 materials](http://satori99.github.io/threejs-blender-export/suzanne.png)
+![Blender Suzanne mesh with 6 materials](https://satori99.github.io/threejs-blender-export/suzanne.png)
 
- - [Live Example](http://satori99.github.io/threejs-blender-export/index.html)
+ - [Live Example](https://satori99.github.io/threejs-blender-export/index.html)
  
- - [Example JSON](http://satori99.github.io/threejs-blender-export/suzanne.js)
+ - [Example JSON](https://satori99.github.io/threejs-blender-export/suzanne.js)
 
 ## Features ##
 
