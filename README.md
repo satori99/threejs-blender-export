@@ -4,9 +4,9 @@ Blender Three.js Object Export
 A Three.js Object Format 4.3 Exporter for Blender
 -------------------------------------------------
 
-This add-on will export one or more blender meshes as a single three.js object. The exported object
-will either be a `THREE.Mesh`, or a `THREE.Object3D`, with two or more `THREE.Mesh` children,
-depending on export options.
+This add-on will export one or more blender meshes as a single three.js object that can be imported
+with the existing `THREE.ObjectLoader`. The exported object will either be a `THREE.Mesh`, or a 
+`THREE.Object3D`, with two or more `THREE.Mesh` children, depending on export options.
 
 ![Blender Suzanne mesh with 6 materials](https://satori99.github.io/threejs-blender-export/suzanne.png)
 
