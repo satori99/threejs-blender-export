@@ -1,0 +1,240 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+	<title>three.js webgl - TEMPLATE</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<style>
+	body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #000000; font-family: monospace; }
+	body > * { display: block; position: absolute; }
+	#info { width: 100%; top: 10px; text-align: center; color: #fff; }
+	a { color: red }
+	#stats { position: absolute; top: 0; left: 0 }
+	#stats #fps { background: transparent !important }
+	#stats #fps #fpsText { color: #aaa !important }
+	#stats #fps #fpsGraph { display: none }
+	#gui { position: absolute; top: 0; right: 0 }
+	</style>
+</head>
+<body>
+	<div id="info">
+		<a href="http://threejs.org" target="_blank">three.js</a> - Blender Three.js Object Export<br/>
+		Suzanne Mesh w/ 6 Materials 
+	</div>
+	<script src="https://raw.githubusercontent.com/mrdoob/three.js/dev/build/three.min.js"></script>
+	<script src="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/js/libs/stats.min.js"></script>
+	<script src="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/js/libs/dat.gui.min.js"></script>
+	<script src="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/js/controls/OrbitControls.js"></script>
+	<script src="https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/js/Detector.js"></script>
+	<script>
+(function() {
+
+	'use strict';
+
+	var OBJECT_FILE = 'suzanne.js';
+
+	var FOVY = 60
+
+	var renderer, needsUpdate;
+
+	var scene, grid, camera, directionalLight;
+
+	var gui, stats, app;
+
+	init();
+
+	animate();
+
+	//
+	
+	function init() {
+
+		renderer = new THREE.WebGLRenderer( { antialias: true } );
+		renderer.domElement.id = 'webgl-renderer';
+		renderer.setClearColor( 0x393939, 1 );
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		document.body.appendChild( renderer.domElement );
+
+		// Scene
+
+		scene = new THREE.Scene();
+		scene.fog = new THREE.FogExp2( 0x393939, 0.01 );
+
+		new THREE.ObjectLoader().load( OBJECT_FILE, function ( object ) {
+			object.traverse( function ( o ) {
+				if ( o.type == "Mesh" && o.material && ! o.material.transparent ) {
+					o.material.side = THREE.DoubleSide;
+				}
+			} );
+			scene.add( object );
+		} );
+
+		grid = new THREE.GridHelper( 8, 1 );
+		grid.matrixAutoUpdate = false;
+		grid.setColors( 0x4a4a4a, 0x4a4a4a );
+		grid.material.transparent = true;
+		grid.material.opacity = 0.85;
+		scene.add( grid );
+
+		// Lights
+
+		directionalLight = new THREE.DirectionalLight( 0xffffff, 0.75 );
+		directionalLight.position.set( 0, 0, -1 );
+		directionalLight.position.setLength( 8 );
+		scene.add( directionalLight );
+
+		directionalLight.controls = new THREE.OrbitControls( directionalLight, renderer.domElement );
+		directionalLight.controls.noZoom = true;
+		directionalLight.controls.noPan = true;
+		directionalLight.controls.noKeys = true;
+		directionalLight.controls.enabled = false;
+		directionalLight.controls.addEventListener( 'change', function() { needsUpdate = true; } );
+		
+		directionalLight.helper = new THREE.DirectionalLightHelper( directionalLight, 1 );
+		scene.add( directionalLight.helper );
+
+		var hemiLight = new THREE.HemisphereLight( 0xccddff, 0x223322, 0.75 );
+		hemiLight.position.copy( directionalLight.position );
+		scene.add( hemiLight );
+
+		hemiLight.helper = new THREE.HemisphereLightHelper( hemiLight, 1 );
+		hemiLight.helper.children[ 0 ].material.fog = false;
+		scene.add( hemiLight.helper );
+
+		var ambientLight = new THREE.AmbientLight( 0x202020 );
+		scene.add( ambientLight );
+
+		// Camera
+
+		camera = new THREE.PerspectiveCamera( FOVY, window.innerWidth / window.innerHeight, 2, 2000 );
+		camera.position.set( -2.5, -8, 17 );
+
+		camera.controls = new THREE.OrbitControls( camera, renderer.domElement );
+		camera.controls.minDistance = 8;
+		camera.controls.maxDistance = 128;
+		camera.controls.autoRotate = true;
+		camera.controls.noKeys = true;
+		camera.controls.addEventListener( 'change', function() { needsUpdate = true; } );
+		//camera.controls
+
+		// UI
+
+		stats = new Stats();
+		document.body.appendChild( stats.domElement );
+
+		gui = new dat.GUI( { autoPlace: false, hideable: true, width: 300 } );
+		gui.domElement.id = 'gui';
+		document.body.appendChild( gui.domElement );
+
+		app = {
+		
+			showGrid: gui.add( grid, 'visible').name( 'Show Grid' ).onChange( function() { needsUpdate = true; } ),
+			
+			rotateCamera: gui.add( camera.controls, 'autoRotate').name( 'Rotate Camera' )
+
+		};
+
+		// Events
+
+		window.addEventListener( 'resize', onWindowResize, false );
+		window.addEventListener( 'keydown', onKeyDown, false );
+		window.addEventListener( 'keyup', onKeyUp, false );
+
+		renderer.domElement.addEventListener( 'mousedown', onMouseDown, false );
+
+	}
+	
+	function animate() {
+
+		stats.begin();
+
+		requestAnimationFrame( animate );
+
+		camera.controls.update();
+
+		if ( needsUpdate === true ) {
+
+			render();
+
+			needsUpdate = false;
+
+		}
+
+		stats.end();
+
+	}
+
+	function render() {
+
+		renderer.render( scene, camera );
+
+	}
+
+	//
+	
+	function onWindowResize( e ) {
+
+		renderer.setSize( window.innerWidth, window.innerHeight );
+
+		camera.aspect = window.innerWidth / window.innerHeight;
+
+		camera.updateProjectionMatrix();
+
+		needsUpdate = true;
+
+	}
+
+	function onKeyDown( e ) {
+	
+		switch ( e.keyCode ) {
+		
+		case 16: // Shift
+			e.preventDefault();
+			camera.controls.enabled = false;
+			directionalLight.controls.enabled = true;
+			break;
+		
+		case 71: // G - Toggle show grid
+			e.preventDefault();
+			app.showGrid.setValue( !app.showGrid.getValue() );
+			break;
+			
+		case 82: // R - Toggle auto rotate
+			e.preventDefault();
+			app.rotateCamera.setValue( !app.rotateCamera.getValue() );
+			break;
+
+		//default:
+		//	console.log( e.keyCode );
+
+		}
+
+	}
+
+	function onKeyUp( e ) {
+	
+		switch ( e.keyCode ) {
+		
+		case 16: // Shift
+			e.preventDefault();
+			camera.controls.enabled = true;
+			directionalLight.controls.enabled = false;
+			break;
+
+		}
+
+	}
+
+	function onMouseDown( e ) {
+
+		if ( e.button === 0 && app.rotateCamera.getValue() === true ) {
+			// disable camera autoRotate
+			app.rotateCamera.setValue( false );
+		}
+
+	}
+
+}());
+	</script>
+</body>
+</html>
