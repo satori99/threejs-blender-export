@@ -34,7 +34,7 @@ with the existing `THREE.ObjectLoader`. The exported object will either be a `TH
 
  - Export only
 
- - no texture support (do it yourself in code)
+ - no texture support (not part of spec yet, but UV's are exported, so you can textures yourself in js code. )
 
  - Blender scene hierarchy is not preserved. Export is always a single logical mesh.
 
