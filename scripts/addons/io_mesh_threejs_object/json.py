@@ -55,122 +55,176 @@ def _make_iterencode(markers,
         return ("%.*f" % (JSON_FLOAT_PRECISION, o + 0)).rstrip('0').rstrip('.')
 
     def _iterencode_list(l, level):
+
         if not l:
             return
+
         buf = '['
         newline_indent = None
         separator = _item_separator
         first = True
+
         for value in l:
+
             if first:
                 first = False
             else:
                 buf = separator
+
             if isinstance(value, str):
                 yield buf + _encoder(value)
+
             elif value is None:
                 yield buf + 'null'
+
             elif value is True:
                 yield buf + 'true'
+
             elif value is False:
                 yield buf + 'false'
+
             elif isinstance(value, int):
                 yield buf + str(value)
+
             elif isinstance(value, float):
-                yield buf + _float_str(value + 0)
+                yield buf + _float_str(value)
+
             else:
                 yield buf
+
                 if isinstance(value, list):
                     chunks = _iterencode_list(value, level)
+
                 elif isinstance(value, dict):
                     chunks = _iterencode_dict(value, level)
+
                 else:
                     chunks = _iterencode(value, level)
+
                 for chunk in chunks:
                     yield chunk
+
         if newline_indent is not None:
             level -= 1
             yield '\n' + _indent * level
+
         yield ']'
 
     def _iterencode_dict(d, level):
+
         if not d:
             return
+
         yield '{'
+
         if _indent is not None:
             level += 1
             newline_indent = '\n' + _indent * level
             item_separator = _item_separator + newline_indent
             yield newline_indent
+
         else:
             newline_indent = None
             item_separator = _item_separator
+
         first = True
         for key, value in d.items():
+
             if value is None or key is None:
                 continue
+
             if isinstance(value, (list, dict, Matrix)) and not value:
                 continue
+
             elif isinstance(key, str):
                 pass
+
             elif isinstance(key, float):
                 key = _float_str(key)
+
             elif key is True:
                 key = 'true'
+
             elif key is False:
                 key = 'false'
+
             elif isinstance(key, int):
                 key = str(key)
+
             elif _skipkeys:
                 continue
+
             else:
                 raise TypeError("key " + repr(key) + " is not a string")
+
             if first:
                 first = False
+
             else:
                 yield item_separator
+
             yield _encoder(key)
+
             yield _key_separator
+
             if isinstance(value, str):
                 yield _encoder(value)
+
             elif value is True:
                 yield 'true'
+
             elif value is False:
                 yield 'false'
+
             elif isinstance(value, int):
                 yield str(value)
+
             elif isinstance(value, float):
                 yield _float_str(value)
+
             else:
                 if isinstance(value, (list, set)):
                     chunks = _iterencode_list(value, level)
+
                 elif isinstance(value, dict):
                     chunks = _iterencode_dict(value, level)
+
                 else:
                     chunks = _iterencode(value, level)
+
                 for chunk in chunks:
                     yield chunk
+
         if newline_indent is not None:
             level -= 1
             yield '\n' + _indent * level
+
         yield '}'
 
     def _iterencode(o, level):
+
         if isinstance(o, str):
             yield _encoder(o)
+
         elif o is None:
             return
+
         elif o is True:
             yield 'true'
+
         elif o is False:
             yield 'false'
+
         elif isinstance(o, int):
             yield str(o)
+
         elif isinstance(o, float):
             yield _float_str(o)
+
         elif isinstance(o, (list, set)):
             for chunk in _iterencode_list(o, level):
                 yield chunk
+
         elif isinstance(o, dict):
             for chunk in _iterencode_dict(o, level):
                 yield chunk
