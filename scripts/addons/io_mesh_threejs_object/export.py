@@ -59,67 +59,32 @@ from . import json
 
 def _three_create_material(name):
     """
-    """
-    object = OrderedDict()
+    returns an ordered dictionary of material properties
 
-    object["name"] = name
-    object["type"] = None
-    object["uuid"] = str(uuid.uuid4())
-    object["vertexColors"] = False
-    object["transparent"] = False
-    object["opacity"] = 1.0
-    object["color"] = 0
-    object["ambient"] = None
-    object["emissive"] = None
-    object["specular"] = None
-    object["shininess"] = None
+    Null (None) values are not exported by the custom JSON writer, so this
+    template can be used for all material types by setting the appropriate
+    values.
+    """
+    obj = OrderedDict()
+
+    obj["name"] = name
+    obj["type"] = "MeshBasicMaterial"
+    obj["uuid"] = str(uuid.uuid4())
+    obj["vertexColors"] = False
+    obj["transparent"] = False
+    obj["opacity"] = 1.0
+    obj["color"] = 0
+    obj["ambient"] = None
+    obj["emissive"] = None
+    obj["specular"] = None
+    obj["shininess"] = None
 
     def __str__():
-        return " + THREE.Material: %s" % (name)
+        return " + THREE.%s: %s" % (obj["type"], name)
 
-    object.__str__ = __str__
-    return object
+    obj.__str__ = __str__
 
-
-def _three_create_object3d(name, matrix=None, userData=None):
-    """
-    returns a dict representing a THREE.Object3D instance
-    """
-    if matrix:
-        matrix = _flip_matrix(matrix)
-
-    object = OrderedDict()
-
-    object["name"] = name
-    object["type"] = "Object3D"
-    object["uuid"] = str(uuid.uuid4())
-    object["matrix"] = matrix
-    object["userData"] = userData
-    object["children"] = list()
-
-    def __str__():
-        return " + THREE.Object3D: %s" % (name)
-
-    object.__str__ = __str__
-    return object
-
-
-def _three_create_mesh(name, matrix=None, userData=None, geom=None, mat=None):
-    """
-    Returns a THREE.Mesh dict
-    """
-    mesh = _three_create_object3d(name, matrix=matrix, userData=userData)
-    mesh["type"] = "Mesh"
-    del mesh["children"]
-    mesh["geometry"] = geom
-    mesh["material"] = mat
-    mesh["children"] = list()
-
-    def __str__():
-        return " + THREE.Mesh: %s" % (name)
-
-    mesh.__str__ = __str__
-    return mesh
+    return obj
 
 
 def _three_create_buffergeometry(name, data):
@@ -161,6 +126,87 @@ def _three_create_buffergeometry(name, data):
 
     geom.__str__ = __str__
     return geom
+
+
+def _three_create_object3d(name, matrix=None, userData=None):
+    """
+    returns a dict representing a THREE.Object3D instance
+    """
+    obj = OrderedDict()
+
+    obj["name"] = name
+    obj["type"] = "Object3D"
+    obj["uuid"] = str(uuid.uuid4())
+    obj["matrix"] = matrix
+    obj["userData"] = userData
+    obj["children"] = list()
+
+    def __str__():
+        return " + THREE.Object3D: %s" % (name)
+
+    obj.__str__ = __str__
+    return obj
+
+
+def _three_create_mesh(name, matrix=None, userData=None, geom=None, mat=None):
+    """
+    Returns a THREE.Mesh dict
+    """
+    obj = OrderedDict()
+
+    obj["name"] = name
+    obj["type"] = "Mesh"
+    obj["uuid"] = str(uuid.uuid4())
+    obj["matrix"] = matrix
+    obj["userData"] = userData
+    obj["geometry"] = geom
+    obj["material"] = mat
+    obj["children"] = list()
+
+    def __str__():
+        return " + THREE.Mesh: %s" % (name)
+
+    obj.__str__ = __str__
+    return obj
+
+
+def _three_create_light(name,
+                        type,
+                        matrix=None,
+                        userData=None,
+                        color=None,
+                        groundColor=None,
+                        intensity=None,
+                        distance=None,
+                        angle=None,
+                        exponent=None,
+                        castShadow=None,
+                        onlyShadow=None,
+                        ):
+    """
+    """
+    obj = OrderedDict()
+
+    obj["name"] = name
+    obj["type"] = type
+    obj["uuid"] = str(uuid.uuid4())
+    obj["matrix"] = matrix
+    obj["userData"] = userData
+    obj["color"] = color
+    obj["groundColor"] = groundColor
+    obj["intensity"] = intensity
+    obj["distance"] = distance
+    obj["angle"] = angle
+    obj["exponent"] = exponent
+    obj["castShadow"] = castShadow
+    obj["onlyShadow"] = onlyShadow
+    obj["children"] = list()
+
+    def __str__():
+        return " + THREE.%s: %s" % (type, name)
+
+    obj.__str__ = __str__
+    return obj
 
 
 def _three_create_output(object, mats, geoms):
@@ -241,17 +287,6 @@ def _color_to_int(color, intensity=1.0):
         int(color.b * intensity * 255)
 
 
-def _flip_matrix(m):
-    """
-    """
-    return [
-        m[0][0], m[2][0], -m[1][0], m[3][0],
-        m[0][2], m[2][2], m[2][1], m[3][1],
-        -m[0][1], m[1][2], m[1][1], m[3][2],
-        m[0][3], m[2][3], -m[1][3], m[3][3]
-    ]
-
-
 def _select_objects(obs):
     """
     Deselects all objects, before selecting objects in the specified list
@@ -269,6 +304,19 @@ def _get_descendants(ob):
         yield c
         for d in _get_object_descendants(c):
             yield d
+
+
+def _flip_matrix(m):
+    """
+    Flips a blender matrix to the Three.js coord system, and flattens it
+    into a row-major 1D list
+    """
+    return [
+        m[0][0], m[2][0], -m[1][0], m[3][0],
+        m[0][2], m[2][2], m[2][1], m[3][1],
+        -m[0][1], m[1][2], m[1][1], m[3][2],
+        m[0][3], m[2][3], -m[1][3], m[3][3]
+    ]
 
 
 def _get_matrix(ob, **props):
@@ -295,7 +343,7 @@ def _get_matrix(ob, **props):
         matrix = _scale_matrix_position(ob.matrix_world.copy())
         parent = _g_root_object
 
-    return matrix, parent
+    return _flip_matrix(matrix), parent
 
 
 def _get_geometry(mesh, scene, **props):
@@ -594,13 +642,61 @@ def _export_mesh(mesh, scene, **props):
 def _export_lamp(lamp, scene, **props):
     """
     """
-    matrix, parent = _get_matrix(mesh, **props)
 
-    object = _three_create_light(lamp.name, matrix=matrix)
+    matrix, parent = _get_matrix(lamp, **props)
 
-    _g_objects[mesh] = object
+    data = lamp.data
 
-    print(object.__str__())
+    if data.type == 'SUN':
+        obj = _three_create_light(lamp.name,
+                                  "DirectionalLight",
+                                  matrix=matrix,
+                                  color=_color_to_int(data.color),
+                                  intensity=data.energy,
+                                  )
+
+    elif data.type == 'HEMI':
+        obj = _three_create_light(lamp.name,
+                                  "HemisphereLight",
+                                  matrix=matrix,
+                                  color=_color_to_int(data.color),
+                                  groundColor=_color_to_int(data.color),
+                                  intensity=data.energy,
+                                  )
+
+    elif data.type == 'POINT':
+        obj = _three_create_light(lamp.name,
+                                  "PointLight",
+                                  matrix=matrix,
+                                  color=_color_to_int(data.color),
+                                  intensity=data.energy,
+                                  distance=data.distance,
+                                  )
+
+    elif data.type == 'SPOT':
+        castShadow = data.shadow_method != "NOSHADOW"
+        onlyShadow = castShadow and data.use_only_shadow
+        obj = _three_create_light(lamp.name,
+                                  "SpotLight",
+                                  matrix=matrix,
+                                  color=_color_to_int(data.color),
+                                  intensity=data.energy,
+                                  distance=data.distance,
+                                  angle=data.spot_size,
+                                  exponent=data.spot_blend,
+                                  castShadow=castShadow,
+                                  onlyShadow=onlyShadow,
+                                  )
+
+    else:
+
+        raise NotImplementedError('TODO: Parse light type:', data.type)
+
+    parent["children"].append(obj)
+
+    _g_objects[lamp] = obj
+
+    print(obj.__str__())
 
 
 def export(context, **props):
@@ -632,11 +728,11 @@ def export(context, **props):
             if ob.type == "MESH":
                 _export_mesh(ob, scene, **props)
 
-            if ob.type == "LAMP":
+            elif ob.type == "LAMP":
                 _export_lamp(ob, scene, **props)
 
             else:
-                print("TODO: Parse %s objects" % (ob.type))
+                print("|n!TODO: Parse %s objects!\n" % (ob.type))
 
         # create output content
         if len(_g_root_object["children"]) == 1:
