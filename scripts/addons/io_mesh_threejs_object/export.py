@@ -656,13 +656,16 @@ def export(context, **props):
         else:
             object = _g_root_object
 
-        content = _three_create_output(object,
-                                       list(_g_materials.values()),
-                                       [a for b in
-                                        [g.values() for g in
-                                         _g_geometries.values()]
-                                        for a in b]
-                                       )
+        content = _three_create_output(
+            object,
+            list(_g_materials.values()),
+            _flatten_list([g.values() for g in
+                           _g_geometries.values()])
+            )
+
+        # export has completed
+        duration = time.time() - start
+        print("\nParsed scene objects in %.2fs." % (duration))
 
         # write to file.
         print("\nWriting %s ... " % (filepath), end="")
