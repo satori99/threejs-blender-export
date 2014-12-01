@@ -418,8 +418,8 @@ def _export_material(mat):
     object["vertexColors"] = mat.use_vertex_color_paint
     object["transparent"] = mat.use_transparency
     object["opacity"] = mat.alpha if mat.use_transparency else 1.0
-    object["color"] = color_to_int(mat.diffuse_color,
-                                   mat.diffuse_intensity)
+    object["color"] = _color_to_int(mat.diffuse_color,
+                                    mat.diffuse_intensity)
 
     # if 'shadeless' is checked, save this material
     # as a Three.js MeshBasicMaterial type.
