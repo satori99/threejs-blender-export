@@ -52,7 +52,9 @@ ROTATE_X_PI2 = Matrix([[1,  0,  0,  0],
 from . import json
 
 
-# Three.js dict helpers
+# #############################################################################
+# Three.js dictionary helpers
+# #############################################################################
 
 
 def _three_create_material(name):
@@ -180,7 +182,9 @@ def _three_create_output(object, mats, geoms):
     return out
 
 
+# #############################################################################
 # Global dictionaries.
+# #############################################################################
 
 
 # dict of THREE.Material dictionaries keyed by Blender material
@@ -410,6 +414,13 @@ def _export_material(mat):
     # create three material instance
     object = _three_create_material(mat.name)
 
+    # common material properties
+    object["vertexColors"] = mat.use_vertex_color_paint
+    object["transparent"] = mat.use_transparency
+    object["opacity"] = mat.alpha if mat.use_transparency else 1.0
+    object["color"] = color_to_int(mat.diffuse_color,
+                                   mat.diffuse_intensity)
+
     # if 'shadeless' is checked, save this material
     # as a Three.js MeshBasicMaterial type.
     if mat.use_shadeless:
@@ -580,6 +591,18 @@ def _export_mesh(mesh, scene, **props):
         print(c.__str__())
 
 
+def _export_lamp(lamp, scene, **props):
+    """
+    """
+    matrix, parent = _get_matrix(mesh, **props)
+
+    object = _three_create_light(lamp.name, matrix=matrix)
+
+    _g_objects[mesh] = object
+
+    print(object.__str__())
+
+
 def export(context, **props):
     """
     """
@@ -608,6 +631,9 @@ def export(context, **props):
 
             if ob.type == "MESH":
                 _export_mesh(ob, scene, **props)
+
+            if ob.type == "LAMP":
+                _export_lamp(ob, scene, **props)
 
             else:
                 print("TODO: Parse %s objects" % (ob.type))
