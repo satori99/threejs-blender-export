@@ -79,11 +79,6 @@ def _three_create_material(name):
     obj["specular"] = None
     obj["shininess"] = None
 
-    def __str__():
-        return " + THREE.%s: %s" % (obj["type"], name)
-
-    obj.__str__ = __str__
-
     return obj
 
 
@@ -100,13 +95,13 @@ def _three_create_buffergeometry(name, data):
 
         return attr
 
-    geom = OrderedDict()
+    obj = OrderedDict()
 
-    geom["name"] = name
-    geom["type"] = "BufferGeometry"
-    geom["uuid"] = str(uuid.uuid4())
-    geom["data"] = OrderedDict()
-    attr = geom["data"]["attributes"] = OrderedDict()
+    obj["name"] = name
+    obj["type"] = "BufferGeometry"
+    obj["uuid"] = str(uuid.uuid4())
+    obj["data"] = OrderedDict()
+    attr = obj["data"]["attributes"] = OrderedDict()
 
     for attr_name, array in data.items():
         if attr_name == "index":
@@ -121,14 +116,13 @@ def _three_create_buffergeometry(name, data):
                 itemSize = 3
         attr[attr_name] = create_attribute(type, itemSize, array)
 
-    def __str__():
-        return " + THREE.BufferGeometry: %s" % (name)
-
-    geom.__str__ = __str__
-    return geom
+    return obj
 
 
-def _three_create_object3d(name, matrix=None, userData=None):
+def _three_create_object3d(name,
+                           matrix=None,
+                           userData=None,
+                           ):
     """
     returns a dict representing a THREE.Object3D instance
     """
@@ -141,14 +135,15 @@ def _three_create_object3d(name, matrix=None, userData=None):
     obj["userData"] = userData
     obj["children"] = list()
 
-    def __str__():
-        return " + THREE.Object3D: %s" % (name)
-
-    obj.__str__ = __str__
     return obj
 
 
-def _three_create_mesh(name, matrix=None, userData=None, geom=None, mat=None):
+def _three_create_mesh(name,
+                       matrix=None,
+                       userData=None,
+                       geom=None,
+                       mat=None,
+                       ):
     """
     Returns a THREE.Mesh dict
     """
@@ -163,10 +158,6 @@ def _three_create_mesh(name, matrix=None, userData=None, geom=None, mat=None):
     obj["material"] = mat
     obj["children"] = list()
 
-    def __str__():
-        return " + THREE.Mesh: %s" % (name)
-
-    obj.__str__ = __str__
     return obj
 
 
@@ -214,13 +205,11 @@ def _three_create_output(object, mats, geoms):
     """
     out = OrderedDict()
 
-    # create output metadata
     md = out["metadata"] = OrderedDict()
     md["type"] = "Object"
     md["version"] = 4.3
     md["generator"] = ""
 
-    # create output data
     out["object"] = object
     out["materials"] = mats
     out["geometries"] = geoms
@@ -346,6 +335,12 @@ def _get_matrix(ob, **props):
     return _flip_matrix(matrix), parent
 
 
+def _print_object(obj):
+    """
+    """
+    print(" + THREE.%s: %s" % (obj["type"], obj["name"]))
+
+
 def _get_geometry(mesh, scene, **props):
     """
     Generator for mesh geometry
@@ -460,40 +455,41 @@ def _export_material(mat):
         return None
 
     # create three material instance
-    object = _three_create_material(mat.name)
+    obj = _three_create_material(mat.name)
 
     # common material properties
-    object["vertexColors"] = mat.use_vertex_color_paint
-    object["transparent"] = mat.use_transparency
-    object["opacity"] = mat.alpha if mat.use_transparency else 1.0
-    object["color"] = _color_to_int(mat.diffuse_color,
-                                    mat.diffuse_intensity)
+    obj["vertexColors"] = mat.use_vertex_color_paint
+    obj["transparent"] = mat.use_transparency
+    obj["opacity"] = mat.alpha if mat.use_transparency else 1.0
+    obj["color"] = _color_to_int(mat.diffuse_color,
+                                 mat.diffuse_intensity)
 
     # if 'shadeless' is checked, save this material
     # as a Three.js MeshBasicMaterial type.
     if mat.use_shadeless:
-        object["type"] = "MeshBasicMaterial"
+        obj["type"] = "MeshBasicMaterial"
 
     # Lambert/Phong common properties
     else:
-        object["ambient"] = _color_to_int(mat.diffuse_color, mat.ambient)
-        object["emissive"] = _color_to_int(mat.diffuse_color, mat.emit)
+        obj["ambient"] = _color_to_int(mat.diffuse_color, mat.ambient)
+        obj["emissive"] = _color_to_int(mat.diffuse_color, mat.emit)
 
         # if material has no specular component, save it as a
         # Three.js MeshLambertMaterial type.
         if mat.specular_intensity == 0:
-            object["type"] = "MeshLambertMaterial"
+            obj["type"] = "MeshLambertMaterial"
 
         # Phong properties
         else:
-            object["type"] = "MeshPhongMaterial"
-            object["shininess"] = int(mat.specular_hardness / 3)
-            object["specular"] = _color_to_int(mat.specular_color,
-                                               mat.specular_intensity)
+            obj["type"] = "MeshPhongMaterial"
+            obj["shininess"] = int(mat.specular_hardness / 3)
+            obj["specular"] = _color_to_int(mat.specular_color,
+                                            mat.specular_intensity)
 
     # done
-    print(object.__str__())
-    return object
+    _print_object(obj)
+
+    return obj
 
 
 def _export_geometry(mesh, scene, **props):
@@ -601,7 +597,7 @@ def _export_geometry(mesh, scene, **props):
             name = "%s.%s" % (mesh.name, mat.name if mat else None)
             geom = _three_create_buffergeometry(name, data)
 
-            print(geom.__str__())
+            _print_object(geom)
 
             geoms[mat] = geom
             geom_id = geom["uuid"]
@@ -619,24 +615,24 @@ def _export_mesh(mesh, scene, **props):
     """
     matrix, parent = _get_matrix(mesh, **props)
 
-    object = _three_create_object3d(mesh.name, matrix=matrix)
-    children = object["children"]
+    obj = _three_create_object3d(mesh.name, matrix=matrix)
+    children = obj["children"]
 
     for mat, geom in _export_geometry(mesh, scene, **props):
         children.append(_three_create_mesh(mesh.name, geom=geom, mat=mat))
 
     if len(children) == 1:
         child = children[0]
-        child["matrix"] = object["matrix"]
-        object = child
+        child["matrix"] = obj["matrix"]
+        obj = child
 
-    parent["children"].append(object)
+    parent["children"].append(obj)
 
-    _g_objects[mesh] = object
+    _g_objects[mesh] = obj
 
-    print(object.__str__())
-    for c in object["children"]:
-        print(c.__str__())
+    _print_object(obj)
+    for c in obj["children"]:
+        _print_object(c)
 
 
 def _export_lamp(lamp, scene, **props):
@@ -696,7 +692,7 @@ def _export_lamp(lamp, scene, **props):
 
     _g_objects[lamp] = obj
 
-    print(obj.__str__())
+    _print_object(obj)
 
 
 def export(context, **props):
