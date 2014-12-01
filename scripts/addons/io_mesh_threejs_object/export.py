@@ -81,6 +81,10 @@ def _three_create_object3d(name, matrix=None):
     '''
     returns a dict representing a THREE.Object3D instance
     '''
+
+    if matrix:
+        matrix = _flip_matrix(matrix)
+
     object = OrderedDict()
 
     object["name"] = name
@@ -209,6 +213,12 @@ def _clear_globals():
         g.clear()
 
 
+def _flatten_list(l):
+    """
+    """
+    return [a for b in l for a in b]
+
+
 def _map_seq_indices(seq):
     '''
     maps a sequence of values into a dict of unique
@@ -230,6 +240,17 @@ def _color_to_int(color, intensity=1.0):
     return int(color.r * intensity * 255) << 16 ^ \
         int(color.g * intensity * 255) << 8 ^ \
         int(color.b * intensity * 255)
+
+
+def _flip_matrix(m):
+    """
+    """
+    return [
+        m[0][0], m[2][0], -m[1][0], m[3][0],
+        m[0][2], m[2][2], m[2][1], m[3][1],
+        -m[0][1], m[1][2], m[1][1], m[3][2],
+        m[0][3], m[2][3], -m[1][3], m[3][3]
+    ]
 
 
 def _select_objects(obs):
@@ -600,6 +621,9 @@ def export(context, **props):
     """
     print("Exporting Three.js Objects ...")
 
+    filepath = props["filepath"]
+    float_precision = props["float_precision"]
+
     start = time.time()
 
     scene = context.scene
@@ -639,6 +663,19 @@ def export(context, **props):
                                          _g_geometries.values()]
                                         for a in b]
                                        )
+
+        # write to file.
+        print("\nWriting %s ... " % (filepath), end="")
+
+        file = open(filepath, "w+", encoding="utf8", newline="\n")
+
+        from . import json
+
+        json.dump(content, file, props["float_precision"])
+
+        file.close()
+
+        print("done.")
 
     finally:
 
