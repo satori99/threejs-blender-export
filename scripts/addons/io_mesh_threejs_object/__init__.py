@@ -45,6 +45,8 @@ if "bpy" in locals():
     import imp
     if "export" in locals():
         imp.reload(export)
+    if "json" in locals():
+        imp.reload(json)
 
 ###############################################################################
 
@@ -70,6 +72,8 @@ from bpy.path import (
     display_name_from_filepath,
     ensure_ext,
     )
+
+from . import json
 
 
 class ThreeObjectExportOperator(Operator, ExportHelper):
@@ -192,6 +196,16 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=True
         )
 
+    # advanced options
+
+    float_precision = IntProperty(
+        name="JSON Float Precision",
+        description="JSON floating point number precision",
+        default=json.JSON_FLOAT_PRECISION,
+        min=3,
+        max=10,
+        )
+
     #
 
     def draw(self, context):
@@ -245,6 +259,12 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         box = layout.box()
         box.label("Materials:", icon="MATERIAL")
         box.prop(self.properties, "export_materials")
+
+        # Advanced Options
+
+        box = layout.box()
+        box.label("Advanced:")
+        box.prop(self.properties, "float_precision")
 
     def execute(self, context):
         '''
