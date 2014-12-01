@@ -1,0 +1,60 @@
+{
+    "metadata": {
+        "type": "Object",
+        "version": 4.3,
+        "generator": ""
+    },
+    "object": {
+        "name": "Cube",
+        "type": "Mesh",
+        "uuid": "47537dbf-9d0f-4232-b089-0c4db1a51365",
+        "matrix": [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+        "geometry": "1dbabf7f-d187-4a1b-b757-6562edfc9c02",
+        "material": "783bbbac-7b86-4b95-8625-2cb940d5822d",
+        "children": [{
+            "name": "Cube.001",
+            "type": "Mesh",
+            "uuid": "672bfc0c-f8e0-4292-8fd7-c7a30694d92e",
+            "matrix": [1.5,0,0,0,0,1.5,0,0,0,0,1.5,0,3,0,0,1],
+            "geometry": "1dbabf7f-d187-4a1b-b757-6562edfc9c02",
+            "material": "783bbbac-7b86-4b95-8625-2cb940d5822d"
+        }]
+    },
+    "materials": [{
+        "name": "Material",
+        "type": "MeshPhongMaterial",
+        "uuid": "783bbbac-7b86-4b95-8625-2cb940d5822d",
+        "vertexColors": false,
+        "transparent": false,
+        "opacity": 1,
+        "color": 0,
+        "ambient": 13421772,
+        "emissive": 0,
+        "specular": 8355711,
+        "shininess": 16
+    }],
+    "geometries": [{
+        "name": "Cube.Material",
+        "type": "BufferGeometry",
+        "uuid": "1dbabf7f-d187-4a1b-b757-6562edfc9c02",
+        "data": {
+            "attributes": {
+                "normal": {
+                    "type": "Float32Array",
+                    "itemSize": 3,
+                    "array": [0,-1,0,0,-1,0,0,-1,0,0,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,1,-1,0,0,-1,0,0,-1,0,0,0,0,-1,0,0,-1,0,0,-1,0,-1,0,0,1,0,1,0,0,0,0,1,-1,0,0,0,0,-1]
+                },
+                "position": {
+                    "type": "Float32Array",
+                    "itemSize": 3,
+                    "array": [1,-1,-1,1,-1,1,-1,-1,1,1,1,-1,-1,1,-1,-1,1,1,1,-1,-1,1,1,-1,1,1,1,1,-1,1,1,1,1,-1,1,1,-1,-1,1,-1,1,1,-1,1,-1,1,1,-1,1,-1,-1,-1,-1,-1,-1,-1,-1,1,1,1,1,-1,1,-1,-1,1,-1,-1,-1,-1,1,-1]
+                },
+                "index": {
+                    "type": "Uint32Array",
+                    "itemSize": 1,
+                    "array": [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,0,2,19,3,5,20,6,8,21,9,11,22,12,14,23,15,17]
+                }
+            }
+        }
+    }]
+}
