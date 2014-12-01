@@ -73,6 +73,8 @@ from bpy.path import (
     ensure_ext,
     )
 
+from . import export
+    
 from . import json
 
 
@@ -267,16 +269,10 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         box.prop(self.properties, "float_precision")
 
     def execute(self, context):
-        '''
+        """
         Execute the object export
-        '''
+        """
         try:
-
-            # self.filepath = ensure_ext(self.filepath, self.filename_ext)
-
-            # keywords = self.as_keywords(ignore=("", ))
-
-            from . import export
 
             export.export(context, **self.as_keywords())
 
