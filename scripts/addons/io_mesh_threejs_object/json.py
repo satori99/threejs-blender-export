@@ -52,7 +52,8 @@ def _make_iterencode(markers,
         Converts float values using built-in string formatting and strips
         trailing zeros
         """
-        return ("%.*f" % (JSON_FLOAT_PRECISION, o + 0)).rstrip('0').rstrip('.')
+        o = round(o, JSON_FLOAT_PRECISION) + 0
+        return ("%.*f" % (JSON_FLOAT_PRECISION, o)).rstrip('0').rstrip('.')
 
     def _iterencode_list(l, level):
 
@@ -133,7 +134,7 @@ def _make_iterencode(markers,
             if value is None or key is None:
                 continue
 
-            if isinstance(value, (list, dict, Matrix)) and not value:
+            if isinstance(value, (list, dict)) and not value:
                 continue
 
             elif isinstance(key, str):
@@ -183,7 +184,7 @@ def _make_iterencode(markers,
                 yield _float_str(value)
 
             else:
-                if isinstance(value, (list, set)):
+                if isinstance(value, list):
                     chunks = _iterencode_list(value, level)
 
                 elif isinstance(value, dict):
@@ -221,7 +222,7 @@ def _make_iterencode(markers,
         elif isinstance(o, float):
             yield _float_str(o)
 
-        elif isinstance(o, (list, set)):
+        elif isinstance(o, list):
             for chunk in _iterencode_list(o, level):
                 yield chunk
 
