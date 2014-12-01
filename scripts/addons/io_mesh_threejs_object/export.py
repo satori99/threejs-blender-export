@@ -49,6 +49,8 @@ ROTATE_X_PI2 = Matrix([[1,  0,  0,  0],
                        [0, -1,  0,  0],
                        [0,  0,  0,  1]])
 
+from . import json
+
 
 # Three.js dict helpers
 
@@ -71,7 +73,7 @@ def _three_create_material(name):
     object["shininess"] = None
 
     def __str__():
-        return "THREE.Material: %s" % (name)
+        return " + THREE.Material: %s" % (name)
 
     object.__str__ = __str__
     return object
@@ -94,7 +96,7 @@ def _three_create_object3d(name, matrix=None):
     object["children"] = list()
 
     def __str__():
-        return "THREE.Object3D: %s" % (name)
+        return " + THREE.Object3D: %s" % (name)
 
     object.__str__ = __str__
     return object
@@ -115,7 +117,7 @@ def _three_create_mesh(name, matrix=None, geom=None, mat=None):
     mesh["children"] = list()
 
     def __str__():
-        return "THREE.Mesh: %s" % (name)
+        return " + THREE.Mesh: %s" % (name)
 
     mesh.__str__ = __str__
     return mesh
@@ -157,7 +159,7 @@ def _three_create_buffergeometry(name, data):
         attr[attr_name] = create_attribute(type, itemSize, array)
 
     def __str__():
-        return "THREE.BufferGeometry: %s" % (name)
+        return " + THREE.BufferGeometry: %s" % (name)
 
     geom.__str__ = __str__
     return geom
@@ -642,7 +644,7 @@ def export(context, **props):
 
         for ob in _export_objects(context, **props):
 
-            print("Exporting %s: %s" % (ob.type, ob.name))
+            print("\nExporting %s: %s\n" % (ob.type, ob.name))
 
             if ob.type == "MESH":
                 _export_mesh(ob, scene, **props)
@@ -669,15 +671,11 @@ def export(context, **props):
 
         # write to file.
         print("\nWriting %s ... " % (filepath), end="")
-
         file = open(filepath, "w+", encoding="utf8", newline="\n")
-
-        from . import json
 
         json.dump(content, file, props["float_precision"])
 
         file.close()
-
         print("done.")
 
     finally:

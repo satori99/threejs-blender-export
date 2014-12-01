@@ -74,7 +74,7 @@ from bpy.path import (
     )
 
 from . import export
-    
+
 from . import json
 
 
@@ -208,7 +208,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         max=10,
         )
 
-    #
+    # instance methods
 
     def draw(self, context):
         '''
