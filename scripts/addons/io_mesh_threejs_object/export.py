@@ -79,11 +79,10 @@ def _three_create_material(name):
     return object
 
 
-def _three_create_object3d(name, matrix=None):
-    '''
+def _three_create_object3d(name, matrix=None, userData=None):
+    """
     returns a dict representing a THREE.Object3D instance
-    '''
-
+    """
     if matrix:
         matrix = _flip_matrix(matrix)
 
@@ -93,6 +92,7 @@ def _three_create_object3d(name, matrix=None):
     object["type"] = "Object3D"
     object["uuid"] = str(uuid.uuid4())
     object["matrix"] = matrix
+    object["userData"] = userData
     object["children"] = list()
 
     def __str__():
@@ -102,16 +102,13 @@ def _three_create_object3d(name, matrix=None):
     return object
 
 
-def _three_create_mesh(name, matrix=None, geom=None, mat=None):
-    '''
+def _three_create_mesh(name, matrix=None, userData=None, geom=None, mat=None):
+    """
     Returns a THREE.Mesh dict
-    '''
-    mesh = OrderedDict()
-
-    mesh["name"] = name
+    """
+    mesh = _three_create_object3d(name, matrix=matrix, userData=userData)
     mesh["type"] = "Mesh"
-    mesh["uuid"] = str(uuid.uuid4())
-    mesh["matrix"] = matrix
+    del mesh["children"]
     mesh["geometry"] = geom
     mesh["material"] = mat
     mesh["children"] = list()
@@ -126,7 +123,6 @@ def _three_create_mesh(name, matrix=None, geom=None, mat=None):
 def _three_create_buffergeometry(name, data):
     """
     """
-
     def create_attribute(type, itemSize, array):
 
         attr = OrderedDict()
@@ -166,8 +162,8 @@ def _three_create_buffergeometry(name, data):
 
 
 def _three_create_output(object, mats, geoms):
-    '''
-    '''
+    """
+    """
     out = OrderedDict()
 
     # create output metadata
@@ -211,7 +207,6 @@ def _clear_globals():
               _g_shared_geometries,
               _g_objects,
               _g_root_object["children"]]:
-
         g.clear()
 
 
@@ -227,9 +222,7 @@ def _map_seq_indices(seq):
     keys and the indexes they were found at.
     '''
     map = defaultdict(list)
-
     for index, obj in enumerate(seq):
-
         map[obj].append(index)
 
     return map
@@ -290,16 +283,12 @@ def _get_matrix(ob, **props):
 
     # get the parent instance, if it exists ...
     if ob.parent in _g_objects:
-
         matrix = _scale_matrix_position(ob.matrix_local.copy())
-
         parent = _g_objects[ob.parent]
 
     # ...otherwise, use the root object as the parent
     else:
-
         matrix = _scale_matrix_position(ob.matrix_world.copy())
-
         parent = _g_root_object
 
     return matrix, parent
@@ -315,19 +304,18 @@ def _get_geometry(mesh, scene, **props):
     export_normals = props["export_normals"]
     split_by_material = props["split_by_material"]
 
+    # temp bmesh
     bm = bmesh.new()
 
     try:
 
-        # fill the bmesh with vertex data
+        # fill the bmesh with modified vertex data
         if apply_mesh_modifiers:
-
             render = mesh_modifier_mode == 'RENDER'
-
             bm.from_object(mesh, scene, render=render, face_normals=False)
 
+        # fill the bmesh with edit mesh data
         else:
-
             bm.from_mesh(mesh.data, face_normals=False)
 
         # transform bmesh verts to three.js coords, and scale
@@ -353,37 +341,35 @@ def _get_geometry(mesh, scene, **props):
 
         # determine if the mesh should be split by material.
         if not split_by_material or not mesh.data.materials:
-
-            # yield the entire mesh with the first material
             mat = mesh.data.materials[0] if mesh.data.materials else None
 
+            # yield mesh data
             yield mat, bm
 
+        # loop through unique materials ...
         else:
-
-            # loop through unique materials ...
             for mat, index_list in \
                     _map_seq_indices(mesh.data.materials).items():
 
+                # temp material mesh
                 mat_bm = bm.copy()
-
                 try:
 
+                    # delete non-material faces
                     geom = [f for f in mat_bm.faces
                             if f.material_index not in index_list]
-
                     bmesh.ops.delete(mat_bm, geom=geom, context=DEL_FACES)
 
+                    # yield mesh data
                     if len(mat_bm.faces) > 0:
-
                         yield mat, mat_bm
 
+                # always free temp material mesh
                 finally:
-
                     mat_bm.free()
 
+    # always free temp mesh
     finally:
-
         bm.free()
 
 
@@ -395,63 +381,58 @@ def _export_objects(context, **props):
     selected_only = props["selected_only"]
     include_descendents = props["include_descendants"]
 
+    # filter selected objects by type
     if selected_only:
-
-        # filter selected objects by type
         for ob in [o for o in context.selected_objects if o.type in types]:
             yield ob
+
+            # select all visible descendent types
             if include_descendants:
-                # select all visible descendent types
                 for d in _get_descendants(ob):
                     if not d.hide and d.type in types:
                         yield d
 
+    # filter all scene objects by type
     else:
-
-        # filter all scene objects by type
         for ob in [o for o in context.scene.objects if o.type in types]:
             yield ob
 
 
 def _export_material(mat):
     """
-    """
-    '''
     parses a blender material object into an OrderedDict representing a
     Three.js material instance
-    '''
+    """
     # ignore null materials
     if not mat:
         return None
 
+    # create three material instance
     object = _three_create_material(mat.name)
 
+    # if 'shadeless' is checked, save this material
+    # as a Three.js MeshBasicMaterial type.
     if mat.use_shadeless:
-
-        # if 'shadeless' is checked, save this material
-        # as a Three.js MeshBasicMaterial type.
         object["type"] = "MeshBasicMaterial"
 
+    # Lambert/Phong common properties
     else:
-
-        # Lambert/Phong common properties
         object["ambient"] = _color_to_int(mat.diffuse_color, mat.ambient)
         object["emissive"] = _color_to_int(mat.diffuse_color, mat.emit)
 
+        # if material has no specular component, save it as a
+        # Three.js MeshLambertMaterial type.
         if mat.specular_intensity == 0:
-
-            # if material has no specular component, save it as a
-            # Three.js MeshLambertMaterial type.
             object["type"] = "MeshLambertMaterial"
 
+        # Phong properties
         else:
-
-            # Phong properties
             object["type"] = "MeshPhongMaterial"
+            object["shininess"] = int(mat.specular_hardness / 3)
             object["specular"] = _color_to_int(mat.specular_color,
                                                mat.specular_intensity)
-            object["shininess"] = int(mat.specular_hardness / 3)
 
+    # done
     print(object.__str__())
     return object
 
@@ -474,11 +455,7 @@ def _export_geometry(mesh, scene, **props):
 
         # yield the uuid's for each shared geometry
         for mat, geom in _g_shared_geometries[mesh.data.name].items():
-
-            print("GOT SHARED:", geom["name"])
-
             mat_id = _g_materials[mat]["uuid"] if mat else None
-
             geom_id = geom["uuid"]
 
             yield mat_id, geom_id
@@ -491,9 +468,7 @@ def _export_geometry(mesh, scene, **props):
 
             # parse material
             if mat not in _g_materials:
-
                 _g_materials[mat] = _export_material(mat)
-
             mat_id = _g_materials[mat]["uuid"] if mat else None
 
             # get uv layer
@@ -519,20 +494,16 @@ def _export_geometry(mesh, scene, **props):
                 data["position"] += vertex["position"]
 
                 if export_normals:
-
                     data["normal"] += vertex["normal"]
 
                 if export_uvs:
-
                     data["uv"] += vertex["uv"]
 
                 if export_colors:
-
                     data["color"] += vertex["color"]
 
             # process each face vertex
             for face in bm.faces:
-
                 for loop in face.loops:
 
                     # create vertex data
@@ -574,7 +545,6 @@ def _export_geometry(mesh, scene, **props):
             print(geom.__str__())
 
             geoms[mat] = geom
-
             geom_id = geom["uuid"]
 
             yield mat_id, geom_id
@@ -588,23 +558,17 @@ def _export_geometry(mesh, scene, **props):
 def _export_mesh(mesh, scene, **props):
     """
     """
-
     matrix, parent = _get_matrix(mesh, **props)
 
     object = _three_create_object3d(mesh.name, matrix=matrix)
-
     children = object["children"]
 
     for mat, geom in _export_geometry(mesh, scene, **props):
-
         children.append(_three_create_mesh(mesh.name, geom=geom, mat=mat))
 
     if len(children) == 1:
-
         child = children[0]
-
         child["matrix"] = object["matrix"]
-
         object = child
 
     parent["children"].append(object)
@@ -612,9 +576,7 @@ def _export_mesh(mesh, scene, **props):
     _g_objects[mesh] = object
 
     print(object.__str__())
-
     for c in object["children"]:
-
         print(c.__str__())
 
 
@@ -627,7 +589,6 @@ def export(context, **props):
     float_precision = props["float_precision"]
 
     start = time.time()
-
     scene = context.scene
 
     # set object mode
@@ -643,7 +604,6 @@ def export(context, **props):
     try:
 
         for ob in _export_objects(context, **props):
-
             print("\nExporting %s: %s\n" % (ob.type, ob.name))
 
             if ob.type == "MESH":
