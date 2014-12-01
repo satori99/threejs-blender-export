@@ -43,10 +43,12 @@ bl_info = {
 
 if "bpy" in locals():
     import imp
-    if "json" in locals():
-        imp.reload(json)
+    if "export" in locals():
+        imp.reload(export)
 
 ###############################################################################
+
+import bpy
 
 from bpy.types import (
     Operator,
@@ -121,9 +123,9 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=False
         )
 
-    include_descendents = BoolProperty(
-        name="Include Descendents",
-        description="Always export descendents of selected objects,"
+    include_descendants = BoolProperty(
+        name="Include Descendants",
+        description="Always export descendants of selected objects,"
                     "even when they are not explicitly selected themselves.",
         default=False
         )
@@ -164,6 +166,12 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=True
         )
 
+    export_uv2s = BoolProperty(
+        name="UV2",
+        description="Export BufferGeometry uv2 attributes",
+        default=True
+        )
+
     export_colors = BoolProperty(
         name="Color",
         description="Export BufferGeometry color attribute",
@@ -199,7 +207,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         col = row.column()
         col.prop(self.properties, "selected_only")
         col = row.column()
-        col.prop(self.properties, "include_descendents")
+        col.prop(self.properties, "include_descendants")
         col.enabled = self.selected_only
         layout.prop(self.properties, "uniform_scale")
         layout.prop(self, "object_types")
@@ -226,6 +234,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         row = box.row()
         row.prop(self.properties, "export_normals")
         row.prop(self.properties, "export_uvs")
+        row.prop(self.properties, "export_uv2s")
         row = box.row()
         row.prop(self.properties, "export_colors")
         row.prop(self.properties, "export_index")
@@ -247,9 +256,11 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
 
             # keywords = self.as_keywords(ignore=("", ))
 
-            from .export import export
+            from . import export
 
-            return export(context, **self.as_keywords())
+            export.export(context, **self.as_keywords())
+
+            return {"FINISHED"}
 
         except:
 
