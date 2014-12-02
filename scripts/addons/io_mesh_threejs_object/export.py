@@ -179,7 +179,6 @@ def _get_geometry(mesh, scene, **props):
     apply_mesh_modifiers = props["apply_mesh_modifiers"]
     mesh_modifier_mode = props["mesh_modifier_mode"]
     uniform_scale = props["uniform_scale"]
-    export_normals = props["export_normals"]
     split_by_material = props["split_by_material"]
 
     # temp bmesh
@@ -212,10 +211,7 @@ def _get_geometry(mesh, scene, **props):
                               faces=bm.faces,
                               quad_method=MOD_TRIANGULATE_QUAD_FIXED,
                               ngon_method=MOD_TRIANGULATE_NGON_BEAUTY)
-
-        # re-calculate normals
-        if export_normals:
-            bm.normal_update()
+        bm.normal_update()
 
         # determine if the mesh should be split by material.
         if not split_by_material or not mesh.data.materials:
@@ -251,12 +247,6 @@ def _get_geometry(mesh, scene, **props):
         bm.free()
 
 
-def _get_material_id(mat):
-    """
-    """
-    return _g_materials[mat]["uuid"] if mat else None
-
-
 def _export_objects(context, **props):
     """
     Generator for export objects
@@ -267,7 +257,8 @@ def _export_objects(context, **props):
 
     # filter selected objects by type
     if selected_only:
-        for ob in [o for o in context.selected_objects if o.type in types]:
+        for ob in [o for o in context.selected_objects
+                   if not o.hide and o.type in types]:
             yield ob
 
             # select all visible descendent types
@@ -278,7 +269,8 @@ def _export_objects(context, **props):
 
     # filter all scene objects by type
     else:
-        for ob in [o for o in context.scene.objects if o.type in types]:
+        for ob in [o for o in context.scene.objects
+                   if not o.hide and o.type in types]:
             yield ob
 
 
@@ -334,7 +326,6 @@ def _export_geometry(mesh, scene, **props):
 
     """
     apply_mesh_modifiers = props["apply_mesh_modifiers"]
-    export_normals = props["export_normals"]
     export_uvs = props["export_uvs"]
     export_colors = props["export_colors"]
     export_index = props["export_index"]
@@ -381,9 +372,7 @@ def _export_geometry(mesh, scene, **props):
             def appendVertex(vertex):
 
                 data["position"] += vertex["position"]
-
-                if export_normals:
-                    data["normal"] += vertex["normal"]
+                data["normal"] += vertex["normal"]
 
                 if export_uvs:
                     data["uv"] += vertex["uv"]
@@ -400,8 +389,7 @@ def _export_geometry(mesh, scene, **props):
 
                     vertex["position"] = loop.vert.co.to_tuple()
 
-                    if export_normals:
-                        vertex["normal"] = loop.vert.normal.to_tuple()
+                    vertex["normal"] = loop.vert.normal.to_tuple()
 
                     if export_uvs:
                         vertex["uv"] = loop[uv_layer].uv.to_tuple()
@@ -537,8 +525,9 @@ def _export_lamp(lamp, scene, **props):
 def export(context, **props):
     """
     """
-    filepath = props["filepath"]
+    export_ambient = props["export_ambient"]
     float_precision = props["float_precision"]
+    filepath = props["filepath"]
 
     start = time.time()
     scene = context.scene
@@ -566,6 +555,15 @@ def export(context, **props):
 
             else:
                 print("|n!TODO: Parse %s objects!\n" % (ob.type))
+
+        # export ambient light
+        if export_ambient:
+            ambient = threejs.create_light(
+                "ambient",
+                "AmbientLight",
+                color=_color_to_int(scene.world.ambient_color)
+                )
+            _g_root_object["children"].append(ambient)
 
         # create output content
         if len(_g_root_object["children"]) == 1:

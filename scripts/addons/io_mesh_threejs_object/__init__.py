@@ -165,12 +165,6 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
 
     # geometry options
 
-    export_normals = BoolProperty(
-        name="Normal",
-        description="Export BufferGeometry normal attribute",
-        default=True
-        )
-
     export_uvs = BoolProperty(
         name="UV",
         description="Export BufferGeometry uv attributes",
@@ -260,22 +254,19 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
 
         row = layout.row()
         col = row.column(align=True)
-
         box = col.box()
         box.label("BufferGeometry:", icon="OUTLINER_DATA_MESH")
         r = box.row()
-        # row.prop(self.properties, "export_normals")
-        r.prop(self.properties, "export_uvs")
-        r.prop(self.properties, "export_uv2s")
-        r = box.row()
         r.prop(self.properties, "export_colors")
         r.prop(self.properties, "export_index")
+        r = box.row()
+        r.prop(self.properties, "export_uvs")
+        r.prop(self.properties, "export_uv2s")
         box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
 
         # Material Options
 
         col = row.column(align=True)
-
         box = col.box()
         box.label("Materials:", icon="MATERIAL")
         box.prop(self.properties, "export_materials")
