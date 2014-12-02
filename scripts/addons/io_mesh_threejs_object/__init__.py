@@ -198,6 +198,14 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=True
         )
 
+    # lamp options
+
+    export_ambient = BoolProperty(
+        name="Export Ambient Light",
+        description="Export ambient light",
+        default=True
+        )
+
     # advanced options
 
     float_precision = IntProperty(
@@ -245,22 +253,36 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
 
         # BufferGeometry Attributes
 
-        box = layout.box()
-        box.label("BufferGeometry Attributes:", icon="OUTLINER_DATA_MESH")
-        row = box.row()
-        row.prop(self.properties, "export_normals")
-        row.prop(self.properties, "export_uvs")
-        row.prop(self.properties, "export_uv2s")
-        row = box.row()
-        row.prop(self.properties, "export_colors")
-        row.prop(self.properties, "export_index")
+        row = layout.row()
+        col = row.column(align=True)
+
+        box = col.box()
+        box.label("BufferGeometry:", icon="OUTLINER_DATA_MESH")
+        r = box.row()
+        # row.prop(self.properties, "export_normals")
+        r.prop(self.properties, "export_uvs")
+        r.prop(self.properties, "export_uv2s")
+        r = box.row()
+        r.prop(self.properties, "export_colors")
+        r.prop(self.properties, "export_index")
         box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
 
         # Material Options
 
-        box = layout.box()
+        col = row.column(align=True)
+
+        box = col.box()
         box.label("Materials:", icon="MATERIAL")
         box.prop(self.properties, "export_materials")
+        box.label()
+        box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
+
+        # Lamp Options
+
+        box = layout.box()
+        box.label("Lamp Options:", icon="OUTLINER_OB_LAMP")
+        box.prop(self.properties, "export_ambient")
+        box.enabled = "LAMP" in self.object_types
 
         # Advanced Options
 
