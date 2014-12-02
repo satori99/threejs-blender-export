@@ -1,6 +1,14 @@
 """io_mesh_threejs_object.json
 
 Blender Three.js Object Exporter Addon - Custom JSON writer
+
+NOTE: This is not a general purpose JSON writer. It is designed to export
+only dictionaries that are guaranteed not to have circular refs, or special
+objects.
+
+Lists are written without line breaks between items, and the precision of
+floating point values is customizable.
+
 """
 
 # The MIT License (MIT)

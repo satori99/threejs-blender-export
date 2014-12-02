@@ -45,12 +45,17 @@ if "bpy" in locals():
     import imp
     if "export" in locals():
         imp.reload(export)
+    if "threejs" in locals():
+        imp.reload(threejs)
     if "json" in locals():
         imp.reload(json)
 
 ###############################################################################
 
 import bpy
+# from . import export
+# from . import threejs
+# from . import json
 
 from bpy.types import (
     Operator,
@@ -295,6 +300,8 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         Execute the object export
         """
         try:
+
+            print("\n%s" % (bl_info["name"]))
 
             export.export(context, **self.as_keywords())
 

@@ -49,172 +49,9 @@ ROTATE_X_PI2 = Matrix([[1,  0,  0,  0],
                        [0, -1,  0,  0],
                        [0,  0,  0,  1]])
 
+from . import threejs
+
 from . import json
-
-
-# #############################################################################
-# Three.js dictionary helpers
-# #############################################################################
-
-
-def _three_create_material(name):
-    """
-    returns an ordered dictionary of material properties
-
-    Null (None) values are not exported by the custom JSON writer, so this
-    template can be used for all material types by setting the appropriate
-    values.
-    """
-    obj = OrderedDict()
-
-    obj["name"] = name
-    obj["type"] = "MeshBasicMaterial"
-    obj["uuid"] = str(uuid.uuid4())
-    obj["vertexColors"] = False
-    obj["transparent"] = False
-    obj["opacity"] = 1.0
-    obj["color"] = 0
-    obj["ambient"] = None
-    obj["emissive"] = None
-    obj["specular"] = None
-    obj["shininess"] = None
-
-    return obj
-
-
-def _three_create_buffergeometry(name, data):
-    """
-    """
-    def create_attribute(type, itemSize, array):
-
-        attr = OrderedDict()
-
-        attr["type"] = type
-        attr["itemSize"] = itemSize
-        attr["array"] = array
-
-        return attr
-
-    obj = OrderedDict()
-
-    obj["name"] = name
-    obj["type"] = "BufferGeometry"
-    obj["uuid"] = str(uuid.uuid4())
-    obj["data"] = OrderedDict()
-    attr = obj["data"]["attributes"] = OrderedDict()
-
-    for attr_name, array in data.items():
-        if attr_name == "index":
-            type = "Uint32Array"
-            itemSize = 1
-        else:
-            type = "Float32Array"
-            if attr_name in ("uv", "uv2"):
-                itemSize = 2
-            else:
-                type = "Float32Array"
-                itemSize = 3
-        attr[attr_name] = create_attribute(type, itemSize, array)
-
-    return obj
-
-
-def _three_create_object3d(name,
-                           matrix=None,
-                           userData=None,
-                           ):
-    """
-    returns a dict representing a THREE.Object3D instance
-    """
-    obj = OrderedDict()
-
-    obj["name"] = name
-    obj["type"] = "Object3D"
-    obj["uuid"] = str(uuid.uuid4())
-    obj["matrix"] = matrix
-    obj["userData"] = userData
-    obj["children"] = list()
-
-    return obj
-
-
-def _three_create_mesh(name,
-                       matrix=None,
-                       userData=None,
-                       geom=None,
-                       mat=None,
-                       ):
-    """
-    Returns a THREE.Mesh dict
-    """
-    obj = OrderedDict()
-
-    obj["name"] = name
-    obj["type"] = "Mesh"
-    obj["uuid"] = str(uuid.uuid4())
-    obj["matrix"] = matrix
-    obj["userData"] = userData
-    obj["geometry"] = geom
-    obj["material"] = mat
-    obj["children"] = list()
-
-    return obj
-
-
-def _three_create_light(name,
-                        type,
-                        matrix=None,
-                        userData=None,
-                        color=None,
-                        groundColor=None,
-                        intensity=None,
-                        distance=None,
-                        angle=None,
-                        exponent=None,
-                        castShadow=None,
-                        onlyShadow=None,
-                        ):
-    """
-    """
-    obj = OrderedDict()
-
-    obj["name"] = name
-    obj["type"] = type
-    obj["uuid"] = str(uuid.uuid4())
-    obj["matrix"] = matrix
-    obj["userData"] = userData
-    obj["color"] = color
-    obj["groundColor"] = groundColor
-    obj["intensity"] = intensity
-    obj["distance"] = distance
-    obj["angle"] = angle
-    obj["exponent"] = exponent
-    obj["castShadow"] = castShadow
-    obj["onlyShadow"] = onlyShadow
-    obj["children"] = list()
-
-    def __str__():
-        return " + THREE.%s: %s" % (type, name)
-
-    obj.__str__ = __str__
-    return obj
-
-
-def _three_create_output(object, mats, geoms):
-    """
-    """
-    out = OrderedDict()
-
-    md = out["metadata"] = OrderedDict()
-    md["type"] = "Object"
-    md["version"] = 4.3
-    md["generator"] = ""
-
-    out["object"] = object
-    out["materials"] = mats
-    out["geometries"] = geoms
-
-    return out
 
 
 # #############################################################################
@@ -235,7 +72,7 @@ _g_shared_geometries = dict()
 _g_objects = dict()
 
 # global root object
-_g_root_object = _three_create_object3d("root")
+_g_root_object = threejs.create_object3d("root")
 
 
 def _clear_globals():
@@ -335,12 +172,6 @@ def _get_matrix(ob, **props):
     return _flip_matrix(matrix), parent
 
 
-def _print_object(obj):
-    """
-    """
-    print(" + THREE.%s: %s" % (obj["type"], obj["name"]))
-
-
 def _get_geometry(mesh, scene, **props):
     """
     Generator for mesh geometry
@@ -420,6 +251,12 @@ def _get_geometry(mesh, scene, **props):
         bm.free()
 
 
+def _get_material_id(mat):
+    """
+    """
+    return _g_materials[mat]["uuid"] if mat else None
+
+
 def _export_objects(context, **props):
     """
     Generator for export objects
@@ -455,7 +292,7 @@ def _export_material(mat):
         return None
 
     # create three material instance
-    obj = _three_create_material(mat.name)
+    obj = threejs.create_material(mat.name)
 
     # common material properties
     obj["vertexColors"] = mat.use_vertex_color_paint
@@ -487,7 +324,7 @@ def _export_material(mat):
                                             mat.specular_intensity)
 
     # done
-    _print_object(obj)
+    threejs.print_object(obj)
 
     return obj
 
@@ -506,25 +343,22 @@ def _export_geometry(mesh, scene, **props):
     # has no modifiers or we are not applying them ...
     use_shared = not mesh.modifiers or not apply_mesh_modifiers
 
+    # yield the uuid's for each shared geometry ...
     if use_shared and mesh.data.name in _g_shared_geometries:
-
-        # yield the uuid's for each shared geometry
         for mat, geom in _g_shared_geometries[mesh.data.name].items():
-            mat_id = _g_materials[mat]["uuid"] if mat else None
+            # mat_id = _g_materials[mat]["uuid"] if mat else None
             geom_id = geom["uuid"]
+            yield mat, geom_id
 
-            yield mat_id, geom_id
-
+    # otherwise, create the geometry for this mesh object.
     else:
-
         geoms = dict()
-
         for mat, bm in _get_geometry(mesh, scene, **props):
 
             # parse material
             if mat not in _g_materials:
                 _g_materials[mat] = _export_material(mat)
-            mat_id = _g_materials[mat]["uuid"] if mat else None
+            # mat_id = _g_materials[mat]["uuid"] if mat else None
 
             # get uv layer
             if export_uvs:
@@ -594,15 +428,15 @@ def _export_geometry(mesh, scene, **props):
                     else:
                         appendVertex(vertex)
 
-            name = "%s.%s" % (mesh.name, mat.name if mat else None)
-            geom = _three_create_buffergeometry(name, data)
-
-            _print_object(geom)
+            # create buffergeometry
+            name = "%s:%s" % (mesh.name, mat.name if mat else None)
+            geom = threejs.create_buffergeometry(name, data)
+            threejs.print_object(geom)
 
             geoms[mat] = geom
             geom_id = geom["uuid"]
 
-            yield mat_id, geom_id
+            yield mat, geom_id
 
         # store mesh geomtries
         _g_geometries[mesh.name] = geoms
@@ -615,11 +449,16 @@ def _export_mesh(mesh, scene, **props):
     """
     matrix, parent = _get_matrix(mesh, **props)
 
-    obj = _three_create_object3d(mesh.name, matrix=matrix)
+    obj = threejs.create_object3d(mesh.name, matrix=matrix)
     children = obj["children"]
 
     for mat, geom in _export_geometry(mesh, scene, **props):
-        children.append(_three_create_mesh(mesh.name, geom=geom, mat=mat))
+        name = "%s:%s" % (mesh.name, mat.name if mat else None)
+        children.append(threejs.create_mesh(name,
+                                            geom=geom,
+                                            mat=_g_materials[mat]["uuid"]
+                                            if mat else None
+                                            ))
 
     if len(children) == 1:
         child = children[0]
@@ -630,59 +469,56 @@ def _export_mesh(mesh, scene, **props):
 
     _g_objects[mesh] = obj
 
-    _print_object(obj)
-    for c in obj["children"]:
-        _print_object(c)
+    threejs.print_object(obj)
 
 
 def _export_lamp(lamp, scene, **props):
     """
     """
-
     matrix, parent = _get_matrix(lamp, **props)
 
     data = lamp.data
 
     if data.type == 'SUN':
-        obj = _three_create_light(lamp.name,
-                                  "DirectionalLight",
-                                  matrix=matrix,
-                                  color=_color_to_int(data.color),
-                                  intensity=data.energy,
-                                  )
+        obj = threejs.create_light(lamp.name,
+                                   "DirectionalLight",
+                                   matrix=matrix,
+                                   color=_color_to_int(data.color),
+                                   intensity=data.energy,
+                                   )
 
     elif data.type == 'HEMI':
-        obj = _three_create_light(lamp.name,
-                                  "HemisphereLight",
-                                  matrix=matrix,
-                                  color=_color_to_int(data.color),
-                                  groundColor=_color_to_int(data.color),
-                                  intensity=data.energy,
-                                  )
+        obj = threejs.create_light(lamp.name,
+                                   "HemisphereLight",
+                                   matrix=matrix,
+                                   color=_color_to_int(data.color),
+                                   groundColor=_color_to_int(data.color),
+                                   intensity=data.energy,
+                                   )
 
     elif data.type == 'POINT':
-        obj = _three_create_light(lamp.name,
-                                  "PointLight",
-                                  matrix=matrix,
-                                  color=_color_to_int(data.color),
-                                  intensity=data.energy,
-                                  distance=data.distance,
-                                  )
+        obj = threejs.create_light(lamp.name,
+                                   "PointLight",
+                                   matrix=matrix,
+                                   color=_color_to_int(data.color),
+                                   intensity=data.energy,
+                                   distance=data.distance,
+                                   )
 
     elif data.type == 'SPOT':
         castShadow = data.shadow_method != "NOSHADOW"
         onlyShadow = castShadow and data.use_only_shadow
-        obj = _three_create_light(lamp.name,
-                                  "SpotLight",
-                                  matrix=matrix,
-                                  color=_color_to_int(data.color),
-                                  intensity=data.energy,
-                                  distance=data.distance,
-                                  angle=data.spot_size,
-                                  exponent=data.spot_blend,
-                                  castShadow=castShadow,
-                                  onlyShadow=onlyShadow,
-                                  )
+        obj = threejs.create_light(lamp.name,
+                                   "SpotLight",
+                                   matrix=matrix,
+                                   color=_color_to_int(data.color),
+                                   intensity=data.energy,
+                                   distance=data.distance,
+                                   angle=data.spot_size,
+                                   exponent=data.spot_blend,
+                                   castShadow=castShadow,
+                                   onlyShadow=onlyShadow,
+                                   )
 
     else:
 
@@ -692,14 +528,15 @@ def _export_lamp(lamp, scene, **props):
 
     _g_objects[lamp] = obj
 
-    _print_object(obj)
+    threejs.print_object(obj)
+
+
+# Export
 
 
 def export(context, **props):
     """
     """
-    print("Exporting Three.js Objects ...")
-
     filepath = props["filepath"]
     float_precision = props["float_precision"]
 
