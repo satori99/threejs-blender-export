@@ -434,7 +434,7 @@ def _export_objects(context, **props):
             yield ob
 
             # select all visible descendent types
-            if include_descendants:
+            if include_descendents:
                 for d in _get_descendants(ob):
                     if not d.hide and d.type in types:
                         yield d
