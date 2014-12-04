@@ -337,7 +337,7 @@ def _export_material(mat):
 
 def _export_animation(mesh, scene, morphs, **props):
     """
-    morph_animations=
+    _export_animation
     {
         <Material.000>: {
             "FlagAction_000": [ verts, ... ],
@@ -356,7 +356,7 @@ def _export_animation(mesh, scene, morphs, **props):
 
     morph_data = dict()
 
-    print("Exporting morph_animations:", action.name)
+    # print("Exporting morph_animations:", action.name)
 
     for index, frame in enumerate(range(scene.frame_start,
                                         scene.frame_end,
@@ -429,6 +429,8 @@ def _export_geometry(mesh, scene, **props):
             # parse material
             if mat not in _g_materials:
                 _g_materials[mat] = _export_material(mat)
+                if mesh.data.show_double_sided:
+                    _g_materials[mat]["side"] = 2
 
             # get uv layers
             if export_uvs:
@@ -446,21 +448,21 @@ def _export_geometry(mesh, scene, **props):
                 vertex_map = dict()
 
             if morph_animations:
-                morph_data = morphs[mat] = list()
+                morph_indices = morphs[mat] = list()
 
             # create vertex data arrays
-            data = defaultdict(list)
+            attributes = defaultdict(list)
 
             # append data to the vertex data arrays
             def appendVertex(vertex):
-                data["position"] += vertex["position"]
-                data["normal"] += vertex["normal"]
+                attributes["position"] += vertex["position"]
+                attributes["normal"] += vertex["normal"]
                 if export_uvs:
-                    data["uv"] += vertex["uv"]
+                    attributes["uv"] += vertex["uv"]
                     if export_uv2s:
-                        data["uv2"] += vertex["uv2"]
+                        attributes["uv2"] += vertex["uv2"]
                 if export_colors:
-                    data["color"] += vertex["color"]
+                    attributes["color"] += vertex["color"]
 
             # populate vertex data arrays
             for face in bm.faces:
@@ -495,36 +497,36 @@ def _export_geometry(mesh, scene, **props):
                             # append vertex data
                             appendVertex(vertex)
                             if morph_animations:
-                                morph_data.append(loop.vert.index)
+                                morph_indices.append(loop.vert.index)
 
                         # append index
-                        data["index"].append(index)
+                        attributes["index"].append(index)
 
                     # Non-indexed BufferGeometry
                     else:
                         appendVertex(vertex)
                         if morph_animations:
-                            morph_data.append(loop.vert.index)
+                            morph_indices.append(loop.vert.index)
 
             # print("positions", int(len(data["position"]) / 3))
 
             # create buffergeometry
             name = "%s:%s" % (mesh.data.name, mat.name if mat else None)
-            geom = threejs.create_buffergeometry(name, data)
+            geom = threejs.create_buffergeometry(name, attributes)
             geoms[mat] = geom
             # yield mat, geom
 
         # export morph animation
         if morph_animations:
 
-            m_data = _export_animation(mesh, scene, morphs, **props)
+            morph_data = _export_animation(mesh, scene, morphs, **props)
 
-            for mat, targets in m_data.items():
-                print(mat)
-                for target_name, positions in targets.items():
-                    print("\t", target_name, len(positions))
+            # for mat, targets in morph_data.items():
+            #     print(mat)
+            #     for target_name, positions in targets.items():
+            #         print("\t", target_name, len(positions))
 
-            for mat, data in m_data.items():
+            for mat, data in morph_data.items():
                 geom = geoms[mat]
                 morph_targets = geom["data"]["morphTargets"]
                 positions = geom["data"]["attributes"]["position"]["array"]
@@ -663,18 +665,14 @@ def _export_lamp(lamp, scene, **props):
 def _export_ambient(scene, **props):
     """
     """
-
-    print('scene.world.ambient_color', scene.world.ambient_color)
-
     ambient = threejs.create_light(
         "Ambient",
         "AmbientLight",
         color=_color_to_int(scene.world.ambient_color)
         )
 
-    # ambient["_hex"] = hex(ambient["color"])
-
     threejs.print_object(ambient)
+
     _g_root_object["children"].append(ambient)
 
 
@@ -717,7 +715,7 @@ def export(context, **props):
 
         # export ambient light
         if "LAMP" in object_types and export_ambient:
-            print("\nExporting %s: %s\n" % (ob.type, ob.name))
+            print("\nExporting Ambient: Ambient\n")
             _export_ambient(scene, **props)
 
         # create output content

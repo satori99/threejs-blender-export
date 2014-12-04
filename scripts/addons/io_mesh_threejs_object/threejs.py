@@ -87,6 +87,7 @@ def create_buffergeometry(name, attributes):
     obj["data"] = OrderedDict()
     obj["data"]["attributes"] = OrderedDict()
     obj["data"]["morphTargets"] = list()
+    obj["data"]["boundingSphere"] = dict()
 
     for attr_name, attr_array in attributes.items():
         obj["data"]["attributes"][attr_name] = create_attribute(attr_name,
