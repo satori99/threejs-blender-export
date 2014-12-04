@@ -194,6 +194,21 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=True
         )
 
+    export_offsets = BoolProperty(
+        name="Offsets",
+        description="Export BufferGeometry offsets",
+        default=True
+        )
+
+    offset_size = IntProperty(
+        name="Offset Size",
+        description="Offset (Drawcall) size",
+        default=65535,
+        min=1,
+        max=65535,
+        step=1024,
+        )
+
     # material options
 
     export_materials = BoolProperty(
@@ -216,7 +231,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         name="JSON Float Precision",
         description="JSON floating point number precision",
         default=3,  # json.JSON_FLOAT_PRECISION,
-        min=3,
+        min=0,
         max=10,
         )
 
@@ -279,6 +294,12 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         c = r.column()
         c.prop(self.properties, "export_uv2s")
         c.enabled = self.export_uvs
+        r = box.row()
+        c = r.column()
+        c.prop(self.properties, "export_offsets")
+        c = r.column()
+        c.prop(self.properties, "offset_size")
+        c.enabled = self.export_offsets
 
         box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
 
@@ -288,6 +309,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         box = col.box()
         box.label("Materials:", icon="MATERIAL")
         box.prop(self.properties, "export_materials")
+        box.label()
         box.label()
         box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
 

@@ -184,6 +184,14 @@ def _get_matrix(ob, **props):
     return _flip_matrix(matrix), parent
 
 
+def _get_user_props(ob):
+    """
+    """
+    for name, value in ob.data.items():
+        if type(value) in (bool, int, float, str):
+            yield name, value
+
+
 def _get_geometry(mesh,
                   scene,
                   apply_mesh_modifiers=True,
@@ -335,7 +343,7 @@ def _export_material(mat):
     return obj
 
 
-def _export_animation(mesh, scene, morphs, **props):
+def _export_animation(mesh, scene, morph_index_map, **props):
     """
     _export_animation
     {
@@ -370,7 +378,7 @@ def _export_animation(mesh, scene, morphs, **props):
 
         for mat, bm in _get_geometry(mesh, scene, **props):
 
-            morph_indices = morphs[mat]
+            morph_indices = morph_index_map[mat]
 
             # print("Processing %d indices ... " % (len(morph_indices)))
 
@@ -423,7 +431,7 @@ def _export_geometry(mesh, scene, **props):
     else:
         geoms = dict()
         if morph_animations:
-            morphs = dict()
+            morph_index_map = dict()
         for mat, bm in _get_geometry(mesh, scene, **props):
 
             # parse material
@@ -448,7 +456,7 @@ def _export_geometry(mesh, scene, **props):
                 vertex_map = dict()
 
             if morph_animations:
-                morph_indices = morphs[mat] = list()
+                morph_indices = morph_index_map[mat] = list()
 
             # create vertex data arrays
             attributes = defaultdict(list)
@@ -518,15 +526,8 @@ def _export_geometry(mesh, scene, **props):
 
         # export morph animation
         if morph_animations:
-
-            morph_data = _export_animation(mesh, scene, morphs, **props)
-
-            # for mat, targets in morph_data.items():
-            #     print(mat)
-            #     for target_name, positions in targets.items():
-            #         print("\t", target_name, len(positions))
-
-            for mat, data in morph_data.items():
+            for mat, data in _export_animation(
+                    mesh, scene, morph_index_map, **props).items():
                 geom = geoms[mat]
                 morph_targets = geom["data"]["morphTargets"]
                 positions = geom["data"]["attributes"]["position"]["array"]
@@ -589,6 +590,8 @@ def _export_mesh(mesh, scene, **props):
     _g_objects[mesh] = obj
 
     threejs.print_object(obj)
+
+    return obj
 
 
 def _export_lamp(lamp, scene, **props):
@@ -661,19 +664,23 @@ def _export_lamp(lamp, scene, **props):
 
     threejs.print_object(obj)
 
+    return obj
+
 
 def _export_ambient(scene, **props):
     """
     """
-    ambient = threejs.create_light(
+    obj = threejs.create_light(
         "Ambient",
         "AmbientLight",
         color=_color_to_int(scene.world.ambient_color)
         )
 
-    threejs.print_object(ambient)
+    threejs.print_object(obj)
 
-    _g_root_object["children"].append(ambient)
+    _g_root_object["children"].append(obj)
+
+    return obj
 
 
 # Export
@@ -707,11 +714,18 @@ def export(context, **props):
         for ob in _export_objects(context, **props):
             print("\nExporting %s: %s\n" % (ob.type, ob.name))
             if ob.type == "MESH":
-                _export_mesh(ob, scene, **props)
+                obj = _export_mesh(ob, scene, **props)
+
             elif ob.type == "LAMP":
-                _export_lamp(ob, scene, **props)
+                obj = _export_lamp(ob, scene, **props)
             else:
                 print("\n!TODO: Parse %s objects!\n" % (ob.type))
+
+            if ob.data:
+                for name, value in ob.data.items():
+                    if name.startswith("userdata_") \
+                            and type(value) in (bool, int, float, str):
+                        obj["userData"][name.replace("userdata_", "")] = value
 
         # export ambient light
         if "LAMP" in object_types and export_ambient:
