@@ -79,7 +79,6 @@ from bpy.path import (
     )
 
 from . import export
-
 from . import json
 
 
@@ -116,14 +115,14 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
                ("CAMERA", "Camera", "", "", 8),  # OUTLINER_OB_CAMERA
                ("EMPTY", "Empty", "", "", 16),   # OUTLINER_OB_EMPTY
                ),
-        default={"MESH"},
+        default={"MESH", "LAMP"},
         options={"ENUM_FLAG"}
         )
 
     uniform_scale = FloatProperty(
         name="Uniform Scale",
         description="Apply uniform scale to all exported objects.",
-        default=1.0,
+        default=2.0,  # 1.0,
         min=0.01,
         max=100,
         )
@@ -163,6 +162,12 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         default=True
         )
 
+    morph_animations = BoolProperty(
+        name="Morph Animations",
+        description="Export morph animations",
+        default=True
+        )
+
     # geometry options
 
     export_uvs = BoolProperty(
@@ -174,7 +179,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
     export_uv2s = BoolProperty(
         name="UV2",
         description="Export BufferGeometry uv2 attributes",
-        default=True
+        default=False
         )
 
     export_colors = BoolProperty(
@@ -210,9 +215,15 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
     float_precision = IntProperty(
         name="JSON Float Precision",
         description="JSON floating point number precision",
-        default=json.JSON_FLOAT_PRECISION,
+        default=3,  # json.JSON_FLOAT_PRECISION,
         min=3,
         max=10,
+        )
+
+    morphs_in_userdata = BoolProperty(
+        name="Store morphtargets in userData",
+        description="Store morphtargets in userData",
+        default=True
         )
 
     # instance methods
@@ -248,6 +259,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         row = box.row()
         col = row.column()
         col.prop(self.properties, "split_by_material")
+        col.prop(self.properties, "morph_animations")
         box.enabled = "MESH" in self.object_types
 
         # BufferGeometry Attributes
@@ -257,11 +269,17 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         box = col.box()
         box.label("BufferGeometry:", icon="OUTLINER_DATA_MESH")
         r = box.row()
-        r.prop(self.properties, "export_colors")
-        r.prop(self.properties, "export_index")
+        c = r.column()
+        c.prop(self.properties, "export_index")
+        c = r.column()
+        c.prop(self.properties, "export_colors")
         r = box.row()
-        r.prop(self.properties, "export_uvs")
-        r.prop(self.properties, "export_uv2s")
+        c = r.column()
+        c.prop(self.properties, "export_uvs")
+        c = r.column()
+        c.prop(self.properties, "export_uv2s")
+        c.enabled = self.export_uvs
+
         box.enabled = any(i in self.object_types for i in ("MESH", "CURVE"))
 
         # Material Options
@@ -285,6 +303,7 @@ class ThreeObjectExportOperator(Operator, ExportHelper):
         box = layout.box()
         box.label("Advanced:")
         box.prop(self.properties, "float_precision")
+        box.prop(self.properties, "morphs_in_userdata")
 
     def execute(self, context):
         """

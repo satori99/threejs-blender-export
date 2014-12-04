@@ -26,18 +26,15 @@ Blender Three.js Object Exporter Addon - Export
 # SOFTWARE.
 
 import time
-
 import uuid
 
 from collections import (OrderedDict,
                          defaultdict,
                          namedtuple,
                          )
-
 from mathutils import Matrix
 
 import bpy
-
 import bmesh
 
 MOD_TRIANGULATE_QUAD_FIXED = 1
@@ -50,7 +47,6 @@ ROTATE_X_PI2 = Matrix([[1,  0,  0,  0],
                        [0,  0,  0,  1]])
 
 from . import threejs
-
 from . import json
 
 
@@ -132,6 +128,22 @@ def _get_descendants(ob):
             yield d
 
 
+def _get_uv_layers(uv_layers):
+    """
+    """
+    uv_layer = uv_layers.active
+
+    uv2_layer = None
+
+    if len(uv_layers) > 1:
+        if uv_layers[0] == uv_layer:
+            uv2_layer = uv_layers[1]
+        else:
+            uv2_layer = uv_layers[0]
+
+    return uv_layer, uv2_layer
+
+
 def _flip_matrix(m):
     """
     Flips a blender matrix to the Three.js coord system, and flattens it
@@ -172,15 +184,17 @@ def _get_matrix(ob, **props):
     return _flip_matrix(matrix), parent
 
 
-def _get_geometry(mesh, scene, **props):
+def _get_geometry(mesh,
+                  scene,
+                  apply_mesh_modifiers=True,
+                  mesh_modifier_mode="RENDER",
+                  uniform_scale=1.0,
+                  split_by_material=True,
+                  **props
+                  ):
     """
     Generator for mesh geometry
     """
-    apply_mesh_modifiers = props["apply_mesh_modifiers"]
-    mesh_modifier_mode = props["mesh_modifier_mode"]
-    uniform_scale = props["uniform_scale"]
-    split_by_material = props["split_by_material"]
-
     # temp bmesh
     bm = bmesh.new()
 
@@ -321,40 +335,106 @@ def _export_material(mat):
     return obj
 
 
-def _export_geometry(mesh, scene, **props):
+def _export_animation(mesh, scene, morphs, **props):
+    """
+    morph_animations=
+    {
+        <Material.000>: {
+            "FlagAction_000": [ verts, ... ],
+            "FlagAction_000": [ verts, ... ],
+            "FlagAction_000": [ verts, ... ],
+        },
+        <Material.000>: {
+            "FlagAction_000": [ verts, ... ],
+            "FlagAction_000": [ verts, ... ],
+            "FlagAction_000": [ verts, ... ],
+        }
+    }
     """
 
+    action = mesh.animation_data.action
+
+    morph_data = dict()
+
+    print("Exporting morph_animations:", action.name)
+
+    for index, frame in enumerate(range(scene.frame_start,
+                                        scene.frame_end,
+                                        scene.frame_step)):
+
+        name = "%s_%03d" % (action.name, index)
+
+        # print("%s (%s)" % (name, frame))
+
+        scene.frame_set(frame)
+
+        for mat, bm in _get_geometry(mesh, scene, **props):
+
+            morph_indices = morphs[mat]
+
+            # print("Processing %d indices ... " % (len(morph_indices)))
+
+            if mat in morph_data:
+                # print("Getting existing morph targets ... ")
+                morph_targets = morph_data[mat]
+            else:
+                # print("Creating morph targets %s ... ")
+                morph_targets = morph_data[mat] = OrderedDict()
+
+            morph_verts = morph_targets[name] = list()
+
+            for i in morph_indices:
+
+                vert = bm.verts[i].co.to_tuple()
+
+                morph_verts += vert
+
+    return morph_data
+
+
+def _export_geometry(mesh, scene, **props):
+    """
+    Generator for mesh geometries
+
+    yields a material and a THREE.BufferGeometry dictionary for each sub-mesh
     """
     apply_mesh_modifiers = props["apply_mesh_modifiers"]
+    morph_animations = props["morph_animations"]
     export_uvs = props["export_uvs"]
+    export_uv2s = props["export_uv2s"]
     export_colors = props["export_colors"]
     export_index = props["export_index"]
 
+    morph_animations = morph_animations and mesh.animation_data
+
     # only check for, and re-use matching shared geometry if this mesh
     # has no modifiers or we are not applying them ...
-    use_shared = not mesh.modifiers or not apply_mesh_modifiers
+    use_shared = not morph_animations and (
+        not mesh.modifiers or not apply_mesh_modifiers)
 
     # yield the uuid's for each shared geometry ...
     if use_shared and mesh.data.name in _g_shared_geometries:
         for mat, geom in _g_shared_geometries[mesh.data.name].items():
             # mat_id = _g_materials[mat]["uuid"] if mat else None
-            geom_id = geom["uuid"]
-            yield mat, geom_id
+            # geom_id = geom["uuid"]
+            yield mat, geom
 
     # otherwise, create the geometry for this mesh object.
     else:
         geoms = dict()
+        if morph_animations:
+            morphs = dict()
         for mat, bm in _get_geometry(mesh, scene, **props):
 
             # parse material
             if mat not in _g_materials:
                 _g_materials[mat] = _export_material(mat)
-            # mat_id = _g_materials[mat]["uuid"] if mat else None
 
-            # get uv layer
+            # get uv layers
             if export_uvs:
-                uv_layer = bm.loops.layers.uv.active
+                uv_layer, uv2_layer = _get_uv_layers(bm.loops.layers.uv)
                 export_uvs = export_uvs and uv_layer
+                export_uv2s = export_uvs and export_uv2s and uv2_layer
 
             # get color layer
             if export_colors:
@@ -365,94 +445,143 @@ def _export_geometry(mesh, scene, **props):
             if export_index:
                 vertex_map = dict()
 
+            if morph_animations:
+                morph_data = morphs[mat] = list()
+
             # create vertex data arrays
             data = defaultdict(list)
 
             # append data to the vertex data arrays
             def appendVertex(vertex):
-
                 data["position"] += vertex["position"]
                 data["normal"] += vertex["normal"]
-
                 if export_uvs:
                     data["uv"] += vertex["uv"]
-
+                    if export_uv2s:
+                        data["uv2"] += vertex["uv2"]
                 if export_colors:
                     data["color"] += vertex["color"]
 
-            # process each face vertex
+            # populate vertex data arrays
             for face in bm.faces:
                 for loop in face.loops:
 
                     # create vertex data
                     vertex = OrderedDict()
-
                     vertex["position"] = loop.vert.co.to_tuple()
-
                     vertex["normal"] = loop.vert.normal.to_tuple()
 
                     if export_uvs:
                         vertex["uv"] = loop[uv_layer].uv.to_tuple()
+                        if export_uv2s:
+                            vertex["uv2"] = loop[uv2_layer].uv.to_tuple()
 
                     if export_colors:
                         color = loop[color_layer]
                         vertex["color"] = (color.r, color.g, color.b)
 
+                    # Indexed BufferGeometry
                     if export_index:
-
-                        # check for existing vertex
+                        # Get existing vertex index ...
                         key = tuple(vertex.values())
                         if key in vertex_map:
                             index = vertex_map[key]
 
-                        # create new vertex
+                        # ... or map a new vertex
                         else:
                             index = len(vertex_map)
                             vertex_map[key] = index
-                            appendVertex(vertex)
 
+                            # append vertex data
+                            appendVertex(vertex)
+                            if morph_animations:
+                                morph_data.append(loop.vert.index)
+
+                        # append index
                         data["index"].append(index)
 
+                    # Non-indexed BufferGeometry
                     else:
                         appendVertex(vertex)
+                        if morph_animations:
+                            morph_data.append(loop.vert.index)
+
+            # print("positions", int(len(data["position"]) / 3))
 
             # create buffergeometry
-            name = "%s:%s" % (mesh.name, mat.name if mat else None)
+            name = "%s:%s" % (mesh.data.name, mat.name if mat else None)
             geom = threejs.create_buffergeometry(name, data)
-            threejs.print_object(geom)
-
             geoms[mat] = geom
-            geom_id = geom["uuid"]
+            # yield mat, geom
 
-            yield mat, geom_id
+        # export morph animation
+        if morph_animations:
+
+            m_data = _export_animation(mesh, scene, morphs, **props)
+
+            for mat, targets in m_data.items():
+                print(mat)
+                for target_name, positions in targets.items():
+                    print("\t", target_name, len(positions))
+
+            for mat, data in m_data.items():
+                geom = geoms[mat]
+                morph_targets = geom["data"]["morphTargets"]
+                positions = geom["data"]["attributes"]["position"]["array"]
+                for name, verts in data.items():
+                    assert(len(verts) == len(positions))
+                    target = OrderedDict()
+                    target["name"] = name
+                    target["vertices"] = verts
+                    morph_targets.append(target)
 
         # store mesh geomtries
         _g_geometries[mesh.name] = geoms
         if use_shared:
             _g_shared_geometries[mesh.data.name] = geoms
 
+        for mat, geom in geoms.items():
+            threejs.print_object(geom)
+            yield mat, geom
+
 
 def _export_mesh(mesh, scene, **props):
     """
     """
-    matrix, parent = _get_matrix(mesh, **props)
+    morphs_in_userdata = props["morphs_in_userdata"]
 
+    # create mesh parent object
+    matrix, parent = _get_matrix(mesh, **props)
     obj = threejs.create_object3d(mesh.name, matrix=matrix)
     children = obj["children"]
 
+    # create a new sub-mesh for each mesh geometry
     for mat, geom in _export_geometry(mesh, scene, **props):
         name = "%s:%s" % (mesh.name, mat.name if mat else None)
-        children.append(threejs.create_mesh(name,
-                                            geom=geom,
-                                            mat=_g_materials[mat]["uuid"]
-                                            if mat else None
-                                            ))
+        child_mesh = threejs.create_mesh(name,
+                                         geom=geom["uuid"],
+                                         mat=_g_materials[mat]["uuid"]
+                                         if mat else None
+                                         )
 
+        # move animation to userData
+        geom_data = geom["data"]
+        geom_morphtargets = geom_data["morphTargets"]
+        if geom_morphtargets and morphs_in_userdata:
+            child_mesh["userData"]["morphTargets"] = geom_morphtargets
+            del geom_data["morphTargets"]
+
+        # append child mesh
+        children.append(child_mesh)
+
+    # promote first child object if it is the only child
     if len(children) == 1:
         child = children[0]
         child["matrix"] = obj["matrix"]
+        child["userData"] = obj["userData"]
         obj = child
 
+    # append mesh objects
     parent["children"].append(obj)
 
     _g_objects[mesh] = obj
@@ -468,17 +597,29 @@ def _export_lamp(lamp, scene, **props):
     data = lamp.data
 
     if data.type == 'SUN':
+
+        location = [1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    matrix[12], matrix[13], matrix[14], 1]
+
         obj = threejs.create_light(lamp.name,
                                    "DirectionalLight",
-                                   matrix=matrix,
+                                   matrix=location,
                                    color=_color_to_int(data.color),
                                    intensity=data.energy,
                                    )
 
     elif data.type == 'HEMI':
+
+        location = [1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    matrix[12], matrix[13], matrix[14], 1]
+
         obj = threejs.create_light(lamp.name,
                                    "HemisphereLight",
-                                   matrix=matrix,
+                                   matrix=location,
                                    color=_color_to_int(data.color),
                                    groundColor=_color_to_int(data.color),
                                    intensity=data.energy,
@@ -519,15 +660,35 @@ def _export_lamp(lamp, scene, **props):
     threejs.print_object(obj)
 
 
+def _export_ambient(scene, **props):
+    """
+    """
+
+    print('scene.world.ambient_color', scene.world.ambient_color)
+
+    ambient = threejs.create_light(
+        "Ambient",
+        "AmbientLight",
+        color=_color_to_int(scene.world.ambient_color)
+        )
+
+    # ambient["_hex"] = hex(ambient["color"])
+
+    threejs.print_object(ambient)
+    _g_root_object["children"].append(ambient)
+
+
 # Export
 
 
 def export(context, **props):
     """
     """
-    export_ambient = props["export_ambient"]
+
     float_precision = props["float_precision"]
     filepath = props["filepath"]
+    object_types = props["object_types"]
+    export_ambient = props["export_ambient"]
 
     start = time.time()
     scene = context.scene
@@ -544,35 +705,24 @@ def export(context, **props):
 
     try:
 
+        # export each scene object
         for ob in _export_objects(context, **props):
             print("\nExporting %s: %s\n" % (ob.type, ob.name))
-
             if ob.type == "MESH":
                 _export_mesh(ob, scene, **props)
-
             elif ob.type == "LAMP":
                 _export_lamp(ob, scene, **props)
-
             else:
-                print("|n!TODO: Parse %s objects!\n" % (ob.type))
+                print("\n!TODO: Parse %s objects!\n" % (ob.type))
 
         # export ambient light
-        if export_ambient:
-            ambient = threejs.create_light(
-                "ambient",
-                "AmbientLight",
-                color=_color_to_int(scene.world.ambient_color)
-                )
-            _g_root_object["children"].append(ambient)
+        if "LAMP" in object_types and export_ambient:
+            print("\nExporting %s: %s\n" % (ob.type, ob.name))
+            _export_ambient(scene, **props)
 
         # create output content
-        if len(_g_root_object["children"]) == 1:
-            object = _g_root_object["children"][0]
-        else:
-            object = _g_root_object
-
-        content = _three_create_output(
-            object,
+        content = threejs.create_output(
+            _g_root_object,
             list(_g_materials.values()),
             _flatten_list([g.values() for g in
                            _g_geometries.values()])
@@ -582,12 +732,14 @@ def export(context, **props):
         duration = time.time() - start
         print("\nParsed scene objects in %.2fs." % (duration))
 
-        # write to file.
+        # write to file...
         print("\nWriting %s ... " % (filepath), end="")
         file = open(filepath, "w+", encoding="utf8", newline="\n")
 
+        # ... using custom JSON writer.
         json.dump(content, file, props["float_precision"])
 
+        # finished exporting
         file.close()
         print("done.")
 
@@ -600,11 +752,10 @@ def export(context, **props):
         _select_objects(sel_obs)
 
         # always restore initial selected frome
-        scene.frame_current = sel_frame
+        scene.frame_set(sel_frame)
 
     # export has completed
     duration = time.time() - start
-
     print("\nCompleted in %.2fs." % (duration))
 
 

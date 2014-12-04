@@ -55,15 +55,26 @@ def create_material(name):
     return obj
 
 
-def create_buffergeometry(name, data):
+def create_buffergeometry(name, attributes):
     """
     """
-    def create_attribute(type, itemSize, array):
+    def create_attribute(name, array):
+
+        if name == "index":
+            type = "Uint32Array"
+            size = 1
+        else:
+            type = "Float32Array"
+            if name in ("uv", "uv2"):
+                size = 2
+            else:
+                type = "Float32Array"
+                size = 3
 
         attr = OrderedDict()
 
         attr["type"] = type
-        attr["itemSize"] = itemSize
+        attr["itemSize"] = size
         attr["array"] = array
 
         return attr
@@ -74,27 +85,18 @@ def create_buffergeometry(name, data):
     obj["type"] = "BufferGeometry"
     obj["uuid"] = str(uuid.uuid4())
     obj["data"] = OrderedDict()
-    attr = obj["data"]["attributes"] = OrderedDict()
+    obj["data"]["attributes"] = OrderedDict()
+    obj["data"]["morphTargets"] = list()
 
-    for attr_name, array in data.items():
-        if attr_name == "index":
-            type = "Uint32Array"
-            itemSize = 1
-        else:
-            type = "Float32Array"
-            if attr_name in ("uv", "uv2"):
-                itemSize = 2
-            else:
-                type = "Float32Array"
-                itemSize = 3
-        attr[attr_name] = create_attribute(type, itemSize, array)
+    for attr_name, attr_array in attributes.items():
+        obj["data"]["attributes"][attr_name] = create_attribute(attr_name,
+                                                                attr_array)
 
     return obj
 
 
 def create_object3d(name,
-                    matrix=None,
-                    userData=None,
+                    matrix=None
                     ):
     """
     returns a dict representing a THREE.Object3D instance
@@ -105,7 +107,7 @@ def create_object3d(name,
     obj["type"] = "Object3D"
     obj["uuid"] = str(uuid.uuid4())
     obj["matrix"] = matrix
-    obj["userData"] = userData
+    obj["userData"] = dict()
     obj["children"] = list()
 
     return obj
@@ -113,7 +115,6 @@ def create_object3d(name,
 
 def create_mesh(name,
                 matrix=None,
-                userData=None,
                 geom=None,
                 mat=None,
                 ):
@@ -126,7 +127,7 @@ def create_mesh(name,
     obj["type"] = "Mesh"
     obj["uuid"] = str(uuid.uuid4())
     obj["matrix"] = matrix
-    obj["userData"] = userData
+    obj["userData"] = dict()
     obj["geometry"] = geom
     obj["material"] = mat
     obj["children"] = list()
@@ -137,7 +138,6 @@ def create_mesh(name,
 def create_light(name,
                  type,
                  matrix=None,
-                 userData=None,
                  color=None,
                  groundColor=None,
                  intensity=None,
@@ -155,7 +155,7 @@ def create_light(name,
     obj["type"] = type
     obj["uuid"] = str(uuid.uuid4())
     obj["matrix"] = matrix
-    obj["userData"] = userData
+    obj["userData"] = dict()
     obj["color"] = color
     obj["groundColor"] = groundColor
     obj["intensity"] = intensity
