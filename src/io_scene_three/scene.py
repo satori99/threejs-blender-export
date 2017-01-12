@@ -55,7 +55,7 @@ def export_scene(scene, exporter=None):
     out["uuid"] = get_uuid(scene)
     out["name"] = clean_name(scene.name)
     out["type"] = "Scene"
-    out["background"] = scene.world.horizon_color
+    # out["background"] = scene.world.horizon_color
     out["fog"] = export_fog(scene)
 
     # add custom properties
