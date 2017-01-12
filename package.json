@@ -4,6 +4,7 @@
   "description": "A Three.js Object Format 4.x export addon for Blender ",
   "main": "index.js",
   "scripts": {
+    "build": "gulp",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
