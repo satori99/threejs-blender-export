@@ -147,7 +147,7 @@ class Exporter():
             out["aoMap"] = next(((s.texture, s.uv_layer) for s in textures
                                 if s.use_map_ambient), None)
 
-            out["specularMap"] = next(((s.texture, s.uv_layer) for s in textures
+            out["roughnessMap"] = next(((s.texture, s.uv_layer) for s in textures
                                 if s.use_map_color_spec), None)
 
             out["envMap"] = next(((s.texture, s.uv_layer) for s in textures
