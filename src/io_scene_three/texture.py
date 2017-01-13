@@ -46,9 +46,10 @@ def export_texture(tex):
     else:
 
         out["type"] = "Texture"
-        out["mapping"] = THREE_UVMapping
-        out["repeat"] = [tex.repeat_x, tex.repeat_y]
-        out["offset"] = [0, 0]
+        # out["mapping"] = THREE_UVMapping
+        if tex.repeat_x != 1 or tex.repeat_y != 1:
+            out["repeat"] = [tex.repeat_x, tex.repeat_y]
+        # out["offset"] = [0, 0]
 
         # wrap
         if tex.extension == "CHECKER":
