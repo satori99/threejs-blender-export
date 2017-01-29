@@ -65,7 +65,8 @@ def export_material(mat, exporter=None, _export_uuid=True):
         # create THREE.MeshStandardMaterial
         out["type"] = "MeshStandardMaterial"
         out["color"] = mat.diffuse_color * mat.diffuse_intensity
-        out["roughness"] = mat.roughness
+        if mat.roughness != 1.0:
+            out["roughness"] = mat.roughness
 
         # transparency properties
         if mat.use_transparency:
