@@ -19,7 +19,7 @@ def export_persp_camera_object(ob, scene):
         ob.type == "CAMERA" and \
         ob.data.type == "PERSP", \
         "export_persp_camera_object() expects a " \
-        "`bpy.types.Object(type=\"LAMP\").data(type=\"PERSP\")` arg"
+        "`bpy.types.Object(type=\"CAMERA\").data(type=\"PERSP\")` arg"
 
     out = OrderedDict()
 
