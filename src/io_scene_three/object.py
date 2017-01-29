@@ -81,6 +81,7 @@ def export_object(ob, exporter=None):
     # userData
     if "userData" not in out:
         out["userData"] = OrderedDict()
+    out["userData"].update(get_custom_props(ob, prefix="userData_"))
 
     # add custom/override properties
     out.update(get_custom_props(ob))

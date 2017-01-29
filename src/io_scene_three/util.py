@@ -45,14 +45,13 @@ def get_uuid(ob):
     return str(uuid5(NAMESPACE_DNS, str(ob)))
 
 
-def get_custom_props(ob):
+def get_custom_props(ob, prefix="three_"):
     """returns a dictionary of custom three_* properties for the specified object
 
     :arg ob (bpy.types.ID): Blender object
 
     :returns (dict): Dictionary containing any prefixed custom properties
     """
-    prefix = "three_"
     out = OrderedDict()
     for k, v in ob.items():
         if k.startswith(prefix) and k.find(".") == -1:
