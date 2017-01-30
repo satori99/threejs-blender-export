@@ -60,7 +60,7 @@ def export_scene(scene, exporter=None):
 
     # add custom properties
     out.update(get_custom_props(scene))
-
+    
     # add scene children
     if exporter is not None:
         out["children"] = [o for o in exporter.objects
@@ -70,6 +70,10 @@ def export_scene(scene, exporter=None):
     ambient = export_ambient_light(scene)
     if ambient:
         out["children"].append(ambient)
+
+    # userData
+    if "userData" not in out:
+        out["userData"] = get_custom_props(scene, prefix="userData_")
 
     # done
     return out
