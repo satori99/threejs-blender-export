@@ -128,6 +128,9 @@ def export_sun_lamp_object(ob):
         camera["near"] = ob.data.shadow_buffer_clip_start
         camera["far"] = ob.data.shadow_buffer_clip_end
 
+        camera["userData"] = OrderedDict()
+        camera["userData"].update(get_custom_props(ob.data, prefix="userData_"))
+
         # add custom/override shadowcam properties
         shadow.update(get_custom_props(ob.data))
 
